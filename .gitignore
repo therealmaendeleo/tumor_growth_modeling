@@ -1,0 +1,17 @@
+*.aux
+*.log
+*.toc
+*.bbl
+*.blg
+*.bcf
+*.out
+*.run.xml
+*.synctex.gz
+
+Thesis.bbl-SAVE-ERROR
+svg-inkscape/
+
+*.pdf
+
+GEMINI.md
+*/__pycache__/
