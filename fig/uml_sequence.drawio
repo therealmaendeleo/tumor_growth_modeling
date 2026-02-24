@@ -1,0 +1,159 @@
+<mxfile host="65bd71144e">
+    <diagram name="UML-диаграмма последовательностей" id="0">
+        <mxGraphModel dx="3794" dy="2934" grid="1" gridSize="10" guides="0" tooltips="1" connect="1" arrows="0" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+            <root>
+                <mxCell id="0">
+                    <Object as="cells">
+                        <Object as="u">
+                            <Object style="html=1;verticalAlign=bottom;endArrow=block;startArrow=none;startFill=0;endFill=1;"/>
+                        </Object>
+                    </Object>
+                </mxCell>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="111" value="&lt;b&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;alt&lt;/font&gt;&lt;/b&gt;" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=default;swimlaneFillColor=default;fontSize=24;width=90;height=50;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="-1580" y="-860" width="1540" height="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="&lt;div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;&lt;font&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;&lt;font&gt;&lt;b&gt;:Интерфейс программы&lt;/b&gt;&lt;/font&gt;&lt;/span&gt;" style="shape=umlLifeline;participant=umlEntity;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;verticalAlign=top;spacingTop=36;outlineConnect=0;size=80;fontSize=32;" parent="1" vertex="1">
+                    <mxGeometry x="-700" y="-1050" width="90" height="1360" as="geometry"/>
+                </mxCell>
+                <mxCell id="49" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;" parent="3" vertex="1">
+                    <mxGeometry x="29.5" y="240" width="27.5" height="460" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="run_simulation()" style="html=1;verticalAlign=bottom;endArrow=block;strokeWidth=3;fontSize=32;" parent="3" edge="1" target="49" source="49">
+                    <mxGeometry x="-0.1631" y="50" width="80" relative="1" as="geometry">
+                        <mxPoint x="58" y="231.99999999999977" as="sourcePoint"/>
+                        <mxPoint x="60" y="350" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="170" y="270"/>
+                            <mxPoint x="170" y="330"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="83" value="визуализация&amp;nbsp;&lt;div&gt;значений&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=block;strokeWidth=3;fontSize=32;" parent="3" edge="1" target="49">
+                    <mxGeometry x="-0.0353" y="-5" width="80" relative="1" as="geometry">
+                        <mxPoint x="57.5" y="603" as="sourcePoint"/>
+                        <mxPoint x="57" y="690" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="205" y="603"/>
+                            <mxPoint x="205" y="680"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="118" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#F3F3F3;strokeWidth=2;" parent="3" vertex="1">
+                    <mxGeometry x="35" y="860" width="25" height="350" as="geometry"/>
+                </mxCell>
+                <mxCell id="123" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;strokeColor=default;fillColor=#E9E9E9;" vertex="1" parent="3">
+                    <mxGeometry x="60" y="890" width="30" height="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="121" value="визуализация&amp;nbsp;&lt;div&gt;значений&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=block;strokeWidth=3;fontSize=32;" parent="3" edge="1">
+                    <mxGeometry x="-0.0833" y="-5" width="80" relative="1" as="geometry">
+                        <mxPoint x="90" y="1223" as="sourcePoint"/>
+                        <mxPoint x="90" y="1313" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="225" y="1223"/>
+                            <mxPoint x="225" y="1313"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="41" value="&lt;div&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;b&gt;Пользователь&lt;/b&gt;&lt;/font&gt;&lt;/span&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlActor;size=160;fontSize=24;" parent="1" vertex="1">
+                    <mxGeometry x="-1170" y="-1090" width="80" height="1400" as="geometry"/>
+                </mxCell>
+                <mxCell id="42" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;" parent="41" vertex="1">
+                    <mxGeometry x="24.38" y="260" width="32.5" height="480" as="geometry"/>
+                </mxCell>
+                <mxCell id="86" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;" parent="41" vertex="1">
+                    <mxGeometry x="24.37" y="800" width="31.25" height="580" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="изменение параметра" style="html=1;verticalAlign=bottom;endArrow=block;startArrow=none;startFill=0;endFill=1;entryX=0;entryY=0;entryDx=0;entryDy=5;entryPerimeter=0;fontSize=32;strokeWidth=3;" parent="1" edge="1">
+                    <mxGeometry x="-0.0244" y="-15" width="80" relative="1" as="geometry">
+                        <mxPoint x="-1113.1200000000001" y="-805" as="sourcePoint"/>
+                        <mxPoint x="-670.5" y="-805" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="89" value="запрос анализа" style="html=1;verticalAlign=bottom;endArrow=block;startArrow=none;startFill=0;endFill=1;fontSize=34;strokeWidth=3;entryX=0;entryY=0;entryDx=0;entryDy=5;entryPerimeter=0;" parent="1" source="86" target="87" edge="1">
+                    <mxGeometry x="-0.0099" y="-18" width="80" relative="1" as="geometry">
+                        <mxPoint x="-1135" y="-245" as="sourcePoint"/>
+                        <mxPoint x="-735" y="-245" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="112" value="[параметрический анализ]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=28;" parent="1" vertex="1">
+                    <mxGeometry x="-1539.9906486970558" y="-290" width="370" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="113" value="[симуляция]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;labelBackgroundColor=default;fontSize=28;" parent="1" vertex="1">
+                    <mxGeometry x="-1349.99548360154" y="-840" width="180" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="117" value="" style="endArrow=none;dashed=1;html=1;entryX=0.999;entryY=0.457;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="111" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="-1578" y="-320" as="sourcePoint"/>
+                        <mxPoint x="-60" y="-320" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="114" value="" style="shape=umlFrame;whiteSpace=wrap;html=1;strokeWidth=2;width=70;height=40;" parent="1" vertex="1">
+                    <mxGeometry x="-900" y="-120" width="810" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="115" value="&lt;font style=&quot;font-size: 28px;&quot;&gt;loop&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=18;fontStyle=1" parent="114" vertex="1">
+                    <mxGeometry x="-5.3999999999999995" y="-5.76923076923077" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="116" value="&lt;font style=&quot;font-size: 28px;&quot;&gt;[для каждого&amp;nbsp;&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 28px;&quot;&gt;значения&amp;nbsp;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 28px;&quot;&gt;параметра]&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;labelBackgroundColor=default;fontSize=26;" parent="114" vertex="1">
+                    <mxGeometry x="30.3723" y="55.26621997300946" width="200" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="108" value="&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;&lt;font&gt;передача&amp;nbsp;&lt;/font&gt;&lt;/span&gt;&lt;div style=&quot;color: rgb(63, 63, 63); scrollbar-color: rgb(226, 226, 226) rgb(251, 251, 251);&quot;&gt;&lt;font&gt;вычисленных&amp;nbsp;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;значений&lt;/span&gt;&lt;/font&gt;&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=none;startArrow=open;startFill=0;endFill=0;fontSize=32;strokeWidth=3;dashed=1;entryX=0;entryY=1;entryDx=0;entryDy=-5;entryPerimeter=0;" parent="1" edge="1">
+                    <mxGeometry x="0.0378" y="-22" width="80" relative="1" as="geometry">
+                        <mxPoint x="-610" y="48.000000000000455" as="sourcePoint"/>
+                        <mxPoint x="-147.49999999999955" y="48.000000000000455" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="102" value="&lt;font&gt;solve_rk4()&lt;/font&gt;" style="html=1;verticalAlign=bottom;endArrow=open;entryX=0;entryY=0;entryDx=0;entryDy=5;entryPerimeter=0;strokeWidth=3;endFill=0;fontSize=32;" parent="1" edge="1">
+                    <mxGeometry x="0.1361" y="-16" width="80" relative="1" as="geometry">
+                        <mxPoint x="-610" y="-76" as="sourcePoint"/>
+                        <mxPoint x="-147.5" y="-76" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="56" value="&lt;div&gt;&lt;b&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;font style=&quot;font-size: 9px;&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/b&gt;&lt;/div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;&lt;font&gt;&lt;b&gt;:Модель&lt;/b&gt;&lt;/font&gt;&lt;/span&gt;" style="shape=umlLifeline;participant=umlEntity;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;verticalAlign=top;spacingTop=36;outlineConnect=0;size=90;fontSize=32;" parent="1" vertex="1">
+                    <mxGeometry x="-180" y="-1050" width="90" height="1360" as="geometry"/>
+                </mxCell>
+                <mxCell id="106" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;" parent="56" vertex="1">
+                    <mxGeometry x="32.5" y="969" width="25" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="73" value="solve_rk4()" style="html=1;verticalAlign=bottom;endArrow=open;startArrow=none;startFill=0;endFill=0;fontSize=32;strokeWidth=3;entryX=0;entryY=0;entryDx=0;entryDy=5;entryPerimeter=0;" parent="1" edge="1">
+                    <mxGeometry x="0.0248" y="-20" width="80" relative="1" as="geometry">
+                        <mxPoint x="-642.5" y="-667" as="sourcePoint"/>
+                        <mxPoint x="-148.75" y="-669" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="84" value="&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;передача&amp;nbsp;&lt;/span&gt;&lt;div style=&quot;color: rgb(63, 63, 63); scrollbar-color: rgb(226, 226, 226) rgb(251, 251, 251);&quot;&gt;вычисленных&amp;nbsp;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;значений&lt;/span&gt;&lt;/div&gt;" style="html=1;verticalAlign=bottom;endArrow=none;startArrow=open;startFill=0;endFill=0;fontSize=32;strokeWidth=3;dashed=1;entryX=0;entryY=1;entryDx=0;entryDy=-5;entryPerimeter=0;" parent="1" edge="1">
+                    <mxGeometry x="0.0689" y="-19" width="80" relative="1" as="geometry">
+                        <mxPoint x="-642.5" y="-552" as="sourcePoint"/>
+                        <mxPoint x="-148.75" y="-545" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="71" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="-148.75" y="-677" width="27.5" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="87" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="-670" y="-263" width="30" height="553" as="geometry"/>
+                </mxCell>
+                <mxCell id="125" value="выполнение анализа" style="html=1;verticalAlign=bottom;endArrow=block;strokeWidth=3;fontSize=32;" edge="1" parent="1">
+                    <mxGeometry x="-0.0353" y="-5" width="80" relative="1" as="geometry">
+                        <mxPoint x="-640" y="-230" as="sourcePoint"/>
+                        <mxPoint x="-610" y="-153" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="-442" y="-230"/>
+                            <mxPoint x="-442" y="-153"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

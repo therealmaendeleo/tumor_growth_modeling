@@ -1,0 +1,87 @@
+<mxfile host="65bd71144e">
+    <diagram name="Блок-схема метода Рунге-Кутты" id="0">
+        <mxGraphModel dx="1464" dy="1214" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="Старт" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeWidth=2;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="309.5" y="70" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;fontSize=24;fontFamily=Helvetica;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="2" edge="1" target="4">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="370.5" y="170" as="sourcePoint"/>
+                        <mxPoint x="370.5" y="160" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="4" value="Ввод начальных параметров модели" style="whiteSpace=wrap;html=1;strokeWidth=2;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="248" y="190" width="243" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;fontSize=24;fontFamily=Helvetica;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="38" edge="1" target="33">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="370" y="400" as="sourcePoint"/>
+                        <mxPoint x="370" y="380" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="36" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=24;" edge="1" parent="1" source="33" target="34">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" value="" style="edgeStyle=none;html=1;strokeWidth=2;" edge="1" parent="1" source="33" target="34">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="41" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="33" target="32">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="Основной&amp;nbsp;&lt;div&gt;временной цикл&lt;/div&gt;" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="243.5" y="390" width="253" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="Да" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="431" y="645" width="50" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;fontSize=24;fontFamily=Helvetica;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="34" edge="1" target="19">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="370" y="710" as="sourcePoint"/>
+                        <mxPoint x="370" y="750" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="34" value="Рассчет коэффициентов:&lt;br&gt;- k₁ = h * f(t, y)&lt;br&gt;- k₂ = h * f(t + h/2, y + k₁/2)&lt;br&gt;- k₃ = h * f(t + h/2, y + k₂/2)&lt;br&gt;- k₄ = h * f(t + h, y + k₃)" style="whiteSpace=wrap;html=1;strokeWidth=2;align=left;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="214" y="520" width="311" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="Рассчет нового значения y:&lt;br&gt;y&lt;sub&gt;new&lt;/sub&gt; = y + (k₁ + 2k₂ + 2k₃ + k₄) / 6" style="whiteSpace=wrap;html=1;strokeWidth=2;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="179" y="720" width="383" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;fontSize=24;fontFamily=Helvetica;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="19" edge="1" target="23">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="370" y="1020" as="sourcePoint"/>
+                        <mxPoint x="370" y="1010" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="26" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;fontSize=24;fontFamily=Helvetica;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" target="33" edge="1" source="23">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="156" y="1250" as="sourcePoint"/>
+                        <mxPoint x="304" y="655" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="370" y="940"/>
+                            <mxPoint x="146" y="940"/>
+                            <mxPoint x="146" y="435"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="32" value="Конец" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeWidth=2;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="562" y="395" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="38" value="Инициализация массивов t&lt;sub&gt;res&lt;/sub&gt; и y&lt;sub&gt;res&lt;/sub&gt;" style="whiteSpace=wrap;html=1;strokeWidth=2;fontSize=24;fontFamily=Helvetica;" vertex="1" parent="1">
+                    <mxGeometry x="247" y="290" width="245" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="39" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;fontSize=24;fontFamily=Helvetica;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="4" target="38">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="196" y="250" as="sourcePoint"/>
+                        <mxPoint x="196" y="390" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="23" value="Сохранение значений текущего шага" style="whiteSpace=wrap;html=1;strokeWidth=2;align=center;fontSize=24;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="239" y="830" width="261" height="80" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

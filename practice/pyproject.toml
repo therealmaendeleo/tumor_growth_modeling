@@ -1,15 +1,16 @@
 [project]
-name = "tumor-model"
+name = "tumor-growth-modeling"
 version = "0.1.0"
 description = ""
 authors = [
     {name = "therealmaendeleo",email = "vlad.karmanchikofff@gmail.com"}
 ]
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.14,<4.0"
 dependencies = [
-    "numpy (>=2.4.1,<3.0.0)",
+    "scipy (>=1.17.0,<2.0.0)",
+    "numpy (>=2.4.2,<3.0.0)",
     "matplotlib (>=3.10.8,<4.0.0)",
-    "scipy (>=1.17.0,<2.0.0)"
+    "pyqt5 (>=5.15.11,<6.0.0)"
 ]
 
 

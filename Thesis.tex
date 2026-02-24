@@ -9,32 +9,30 @@
 \usepackage[utf8]{inputenc}
 \usepackage[english, russian]{babel}
 
-
 \usepackage{amsmath, amssymb, amsfonts}
 \usepackage{graphicx, epsfig}
-\usepackage{enumitem} 
+\usepackage{enumitem}
 \usepackage{listings}
-\usepackage{caption}
+\usepackage{caption3}
+
 \usepackage{svg}
 \usepackage{tabularx}
 \usepackage{tabulary}
 
-
 \usepackage{color}
 \usepackage[colorlinks=false,linkcolor=blue,breaklinks]{hyperref}
 
-\usepackage[citestyle=gost-numeric,style=gost-numeric,maxnames=100,natbib=true,urldate=long, sorting=none]{biblatex}
-%\bibliographystyle{ugost2008ns.bst} 
+\usepackage[citestyle=gost-numeric,style=gost-numeric,maxnames=100,natbib=true,urldate=long,
+sorting=none]{biblatex}
+%\bibliographystyle{ugost2008ns.bst}
 \pagestyle{footcenter}
 \chapterpagestyle{footcenter}
 
 %для борьбы с переполнениями за счет разреженных слов в абзаце
 \emergencystretch=5em
 
-
 \graphicspath{{fig/}}
 \addbibresource{Bib.bib}
-
 
 \begin{document}
 
@@ -43,6 +41,9 @@
 \renewcommand\contentsname{Содержание}
 \tableofcontents
 
+\renewcommand{\thefigure}{\arabic{figure}}
+\counterwithout{figure}{chapter}
+
 \input{Intro.tex}
 \input{Chapter1.tex}
 \input{Chapter2.tex}
@@ -50,9 +51,11 @@
 \input{Conclusions.tex}
 
 \printbibliography[heading=bibintoc]
-%\include{Bib.bib}
+% \include{Bib.bib}
 
 % \appendix
 % \input{Appendix.tex}
+
+\input{Progress}
 
 \end{document}
