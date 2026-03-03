@@ -163,7 +163,7 @@ class TicModelGUI(QWidget):
         params = {
             "a": (
                 "Пролиферация (a):",
-                "Скорость пролиферации опухолевых клеток (a), день⁻¹",
+                "a [день⁻¹]",
                 0.01,
                 2.0,
                 0.18,
@@ -179,7 +179,7 @@ class TicModelGUI(QWidget):
             ),
             "c": (
                 "Уничтожение T (c):",
-                "Скорость уничтожения опухолевых клеток (c), мл/(кл·день)",
+                "c [мл/(кл·день)]",
                 2e-7,
                 1e-5,
                 1.101e-7,
@@ -187,7 +187,7 @@ class TicModelGUI(QWidget):
             ),
             "mu": (
                 "Гибель I (μ):",
-                "Скорость гибели иммунных клеток (μ), день⁻¹",
+                "μ [день⁻¹]",
                 0.01,
                 0.5,
                 0.0412,
@@ -195,10 +195,10 @@ class TicModelGUI(QWidget):
             ),
             "d": (
                 "Активация I (d):",
-                "Скорость активации иммунных клеток (d), мл/(кл·день)",
+                "d [мл/(кл·день)]",
                 1e-9,
                 1e-5,
-                7.4e-14,
+                1e-9,
                 1e-9,
             ),
             "p": (
@@ -369,7 +369,9 @@ class TicModelGUI(QWidget):
         hb.addSpacing(20)
         hb.addWidget(QLabel("Результат Y:"))
         self.output_combo = QComboBox()
-        self.output_combo.addItems(["T (Опухолевые клетки)", "I (Иммунные клетки)", "C (Цитокины)"])
+        self.output_combo.addItems(
+            ["Опухолевые клетки [кл/мл]", "I (Иммунные клетки)", "C (Цитокины)"]
+        )
         hb.addWidget(self.output_combo, stretch=1)
         vb.addLayout(hb)
         btn = QPushButton("Запустить анализ")
@@ -377,7 +379,7 @@ class TicModelGUI(QWidget):
         vb.addWidget(btn)
         right_layout.addWidget(g_analysis)
         right_layout.addWidget(self.canvas_param)
-        self.canvas_param.setFixedSize(460, 380)
+        self.canvas_param.setFixedSize(480, 380)
         main_layout.addWidget(right, 2)
 
         for key in self.therapy_combos:
@@ -455,7 +457,15 @@ class TicModelGUI(QWidget):
 
             t_exp, y_exp = self._load_experimental_data()
             if t_exp is not None:
-                ax.scatter(t_exp, y_exp, marker="o", s=40, facecolors="none", edgecolors="red", label="Эксперимент (Siu 1986)")
+                ax.scatter(
+                    t_exp,
+                    y_exp,
+                    marker="o",
+                    s=40,
+                    facecolors="none",
+                    edgecolors="red",
+                    label="Эксперимент (Siu 1986)",
+                )
 
                 # --- НАЧАЛО БЛОКА РАСЧЕТА ОШИБОК ---
 
@@ -464,34 +474,38 @@ class TicModelGUI(QWidget):
                 t_exp_valid = t_exp[valid_indices]
                 y_exp_valid = y_exp[valid_indices]
 
-                if len(t_exp_valid) > 1: # Убедимся, что у нас есть точки для сравнения
+                if len(t_exp_valid) > 1:  # Убедимся, что у нас есть точки для сравнения
                     # 2. Интерполируем значения модели на временные точки эксперимента
                     y_model_interp = np.interp(t_exp_valid, t, y[:, 0])
 
                     # 3. Рассчитываем RMSE
-                    rmse = np.sqrt(np.mean((y_exp_valid - y_model_interp)**2))
+                    rmse = np.sqrt(np.mean((y_exp_valid - y_model_interp) ** 2))
 
                     # 4. Рассчитываем R^2
-                    ss_res = np.sum((y_exp_valid - y_model_interp)**2)
-                    ss_tot = np.sum((y_exp_valid - np.mean(y_exp_valid))**2)
-                    if ss_tot > 0: # Избегаем деления на ноль, если все точки y_exp одинаковы
+                    ss_res = np.sum((y_exp_valid - y_model_interp) ** 2)
+                    ss_tot = np.sum((y_exp_valid - np.mean(y_exp_valid)) ** 2)
+                    if ss_tot > 0:  # Избегаем деления на ноль, если все точки y_exp одинаковы
                         r_squared = 1 - (ss_res / ss_tot)
                     else:
-                        r_squared = 1.0 # Если нет вариации, модель идеальна
+                        r_squared = 1.0  # Если нет вариации, модель идеальна
 
                     # 5. Выводим текст с ошибками на график
                     error_text = f"RMSE: {rmse:,.0f}\n$R^2$: {r_squared:.3f}"
-                    ax.text(0.95, 0.95, error_text,
-                            transform=ax.transAxes,
-                            fontsize=9,
-                            verticalalignment='top',
-                            horizontalalignment='right',
-                            bbox=dict(boxstyle='round,pad=0.4', fc='wheat', alpha=0.5))
+                    ax.text(
+                        0.95,
+                        0.95,
+                        error_text,
+                        transform=ax.transAxes,
+                        fontsize=9,
+                        verticalalignment="top",
+                        horizontalalignment="right",
+                        bbox=dict(boxstyle="round,pad=0.4", fc="wheat", alpha=0.5),
+                    )
 
                 # --- КОНЕЦ БЛОКА РАСЧЕТА ОШИБОК ---
 
-            ax.set_xlabel("Дни")
-            ax.set_ylabel("Клетки (лог. шкала)")
+            ax.set_xlabel("Время [дни]")
+            ax.set_ylabel("Опухолевые клетки [кл/мл] (лог. шкала)")
             ax.set_yscale("symlog", linthresh=1e5)
             # ax.set_ylim(1e5, 1e9)
             ax.legend()
@@ -566,8 +580,8 @@ class TicModelGUI(QWidget):
                 results.append(y[-1, output_idx])
 
             ax.plot(values_to_test, results, "o-")
-            ax.set_xlabel(f"Значение параметра: {key_to_vary}")
-            ax.set_ylabel(f"Конечное значение: {self.output_combo.currentText()}")
+            ax.set_xlabel(f"{config_tuple[1]}")
+            ax.set_ylabel(f"{self.output_combo.currentText()}")
             ax.grid(True)
             self.canvas_param.draw()
 

@@ -15,6 +15,7 @@
 \usepackage{listings}
 \usepackage{caption3}
 
+\usepackage{csquotes}
 \usepackage{svg}
 \usepackage{tabularx}
 \usepackage{tabulary}
@@ -24,6 +25,9 @@
 
 \usepackage[citestyle=gost-numeric,style=gost-numeric,maxnames=100,natbib=true,urldate=long,
 sorting=none]{biblatex}
+\NewBibliographyString{jourvol}
+\DefineBibliographyStrings{russian}{pages = {P\adddot}, page = {P\adddot},
+jourvol = {Vol\adddot}, number = {No\adddot}, andothers = {et al\adddot}}
 %\bibliographystyle{ugost2008ns.bst}
 \pagestyle{footcenter}
 \chapterpagestyle{footcenter}
@@ -50,7 +54,7 @@ sorting=none]{biblatex}
 \input{Chapter3.tex}
 \input{Conclusions.tex}
 
-\printbibliography[heading=bibintoc]
+\printbibliography[heading=bibintoc, title={Список литературы}]
 % \include{Bib.bib}
 
 % \appendix
