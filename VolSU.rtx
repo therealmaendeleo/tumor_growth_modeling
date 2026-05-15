@@ -106,7 +106,8 @@
 %                 \hskip 0pt plus 26fil {\small подпись}\\}
                  \hskip 0pt plus 26fil {\small \cyrp\cyro\cyrd\cyrp\cyri\cyrs\cyrsftsn}\\}
 %%
-\def\titlelabel{\@title \\ (\@semester)}
+% \def\titlelabel{\@title \\ (\@semester)}
+\def\titlelabel{\@title}
 %%
 
 
