@@ -1,596 +1,1267 @@
-import os
 import sys
+from functools import partial
+
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5.QtWidgets import (
-    QApplication,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QMessageBox,
-    QSlider,
-    QComboBox,
-    QGroupBox,
-    QPushButton,
-    QScrollArea,
-)
-from PyQt5.QtCore import Qt
+import pandas as pd
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from matplotlib.ticker import LogFormatter
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFileDialog,  # Или PySide6
+    QFormLayout,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSlider,
+    QSpinBox,
+    QTabWidget,  # Import QTabWidget
+    QVBoxLayout,
+    QWidget,
+)
+from scipy.integrate import solve_ivp
+from scipy.interpolate import interp1d
+from scipy.optimize import differential_evolution
+from scipy.signal import find_peaks
+from scipy.stats import linregress
+
 from model import tic_ode_system
 
+# 1. Переключаем основной шрифт на семейство с засечками (serif)
+plt.rcParams["font.family"] = "serif"
 
-def no_therapy(t):
-    return 0.0
+# 2. Указываем использовать STIX General для обычного текста с засечками
+plt.rcParams["font.serif"] = ["STIXGeneral", "Times New Roman", "DejaVu Serif"]
 
+# 3. САМОЕ ВАЖНОЕ: переключаем математический шрифт (для формул в $...$) на STIX
+plt.rcParams["mathtext.fontset"] = "stix"
 
-def constant_therapy(magnitude):
-    return lambda t: magnitude
-
-
-def pulsed_therapy(magnitude, start, duration):
-    return lambda t: magnitude if start <= t <= start + duration else 0.0
-
-
-def solve_rk4(ode, y0, t_span, h, args=()):
-    t0, tf = t_span
-    if h <= 0:
-        raise ValueError("Шаг интегрирования должен быть > 0")
-    n = int(np.ceil((tf - t0) / h))
-    if n == 0:
-        return np.array([t0]), np.array([y0])
-    t = np.linspace(t0, tf, n + 1)
-    y = np.zeros((len(t), len(y0)))
-    y[0] = y0
-    yc = np.array(y0, dtype=float)
-    for i in range(n):
-        ti = t[i]
-        k1 = h * ode(ti, yc, *args)
-        k2 = h * ode(ti + h / 2, yc + k1 / 2, *args)
-        k3 = h * ode(ti + h / 2, yc + k2 / 2, *args)
-        k4 = h * ode(ti + h, yc + k3, *args)
-        yc += (k1 + 2 * k2 + 2 * k3 + k4) / 6
-        yc[yc < 0] = 0
-        y[i + 1] = yc
-    return t, y
+plt.rcParams.update({"font.size": 20})
 
 
-class TicModelGUI(QWidget):
-    MAX_SLIDER = 10000
+def calculate_oscillation_period(t, T):
+    # Находим индексы пиков концентрации опухолевых клеток
+    # prominence помогает отсечь мелкий численный шум
+    peaks, _ = find_peaks(T, prominence=np.max(T) * 0.1)
 
+    if len(peaks) < 2:
+        return 0  # Колебаний нет или всего один пик
+
+    # Вычисляем разницу во времени между последовательными пиками
+    peak_times = t[peaks]
+    periods = np.diff(peak_times)
+
+    return np.mean(periods)  # Средний период в днях
+
+
+class MplCanvas(FigureCanvas):
+    def __init__(self, parent=None, dpi=100):
+        self.fig = Figure(dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super(MplCanvas, self).__init__(self.fig)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Моделирование динамики роста опухоли при иммунотерапии")
-        self.setFixedSize(1200, 700)
-        self.is_init = True
-        self.sliders = {}
-        self.labels = {}
-        self.param_metadata = {}
-        self.param_configs = {}
-        self.therapy_combos = {}
-        self.therapy_magnitude_sliders = {}
-        self.therapy_start_sliders = {}
-        self.therapy_duration_sliders = {}
-        self.therapy_widgets = {}
-        self.figure_main = Figure()
-        self.canvas_main = FigureCanvas(self.figure_main)
-        self.figure_param = Figure()
-        self.canvas_param = FigureCanvas(self.figure_param)
-        self._init_ui()
-        self._init_plots()
-        self.run_simulation()
-        self.is_init = False
 
-    def _create_slider_row(
-        self, short_txt, tooltip, vmin, vmax, vdef, step, slider_dict, label_dict, key
-    ):
-        row = QHBoxLayout()
-        row.setSpacing(10)
-        lbl = QLabel(short_txt)
-        help_lbl = QLabel("?")
-        help_lbl.setToolTip(tooltip)
-        help_lbl.setStyleSheet(
-            "QLabel { border: 1px solid grey; border-radius: 8px; "
-            "background: #e8e8e8; padding: 1px; }"
-            "QLabel:hover { background: #d0d0d0; }"
-        )
-        help_lbl.setFixedSize(16, 16)
-        help_lbl.setAlignment(Qt.AlignCenter)
-        label_box = QHBoxLayout()
-        label_box.addWidget(lbl)
-        label_box.addWidget(help_lbl)
-        row.addLayout(label_box)
+        self.fit_call_count = 0
+        self.setWindowTitle("Моделирование динамики опухолевых процессов")
+        self.load_clinical_data()
 
-        slider = QSlider(Qt.Horizontal)
-        slider.setRange(0, self.MAX_SLIDER)
-        if vmax > vmin:
-            slider.setValue(int((vdef - vmin) / (vmax - vmin) * self.MAX_SLIDER))
-        slider.setProperty("min_val", vmin)
-        slider.setProperty("max_val", vmax)
-        slider.setProperty("step", step)
-        row.addWidget(slider)
-
-        val_lbl = QLabel(f"{vdef:.4g}")
-        val_lbl.setFixedWidth(60)
-        row.addWidget(val_lbl)
-
-        slider.valueChanged.connect(
-            lambda v, s=slider, l=val_lbl: l.setText(f"{self._slider_to_value(s):.4g}")
-        )
-        slider.sliderReleased.connect(self.run_simulation)
-
-        slider_dict[key] = slider
-        label_dict[key] = val_lbl
-        return row
-
-    def _load_experimental_data(self):
-        try:
-            path = os.path.join("..", "data", "siu_1986_regression_low_dose.csv")
-            data = np.genfromtxt(path, delimiter=",", skip_header=1)
-            if data.ndim == 1:
-                data = data.reshape(1, -1)
-            t_exp = data[:, 0]
-            log_y_exp = data[:, 1]
-            y_exp = 10**log_y_exp
-            return t_exp, y_exp
-        except Exception as e:
-            print("Ошибка загрузки экспериментальных данных:", e)
-            return None, None
-
-    def _slider_to_value(self, slider):
-        vmin = slider.property("min_val")
-        vmax = slider.property("max_val")
-        step = slider.property("step")
-        if vmax == vmin:
-            return vmin
-        val = vmin + (slider.value() / self.MAX_SLIDER) * (vmax - vmin)
-        if step > 0:
-            val = round(val / step) * step
-        return val
-
-    def _init_ui(self):
-        main_layout = QHBoxLayout(self)
-
-        left = QWidget()
-        left_layout = QVBoxLayout(left)
-        left_layout.addWidget(self.canvas_main)
-        self.canvas_main.setFixedSize(650, 400)
-
-        bottom_left = QWidget()
-        bottom_layout = QHBoxLayout(bottom_left)
-
-        params = {
-            "a": (
-                "Пролиферация (a):",
-                "a [день⁻¹]",
+        self.param_list = [
+            (
+                "a",
+                "a (рост)",
+                "[день⁻¹]",
+                "Скорость пролиферации опухолевых клеток",
                 0.01,
-                2.0,
+                1.0,
                 0.18,
                 0.01,
             ),
-            "b": (
-                "Обр. ёмкость среды (b):",
-                "Обратная емкость среды (b), (кл.)⁻¹",
+            (
+                "b",
+                "b (ёмкость)",
+                "[(кл.)⁻¹]",
+                "Параметр, обратный емкости среды",
                 1e-10,
-                0.01,
+                1e-8,
                 2e-9,
-                1e-5,
+                1e-10,
             ),
-            "c": (
-                "Уничтожение T (c):",
-                "c [мл/(кл·день)]",
-                2e-7,
+            (
+                "c",
+                "c (киллинг)",
+                "[мл/(кл·день)]",
+                "Константа скорости уничтожения опухолевых клеток",
+                1e-10,
                 1e-5,
-                1.101e-7,
-                1e-7,
+                1.1e-7,
+                1e-10,
             ),
-            "mu": (
-                "Гибель I (μ):",
-                "μ [день⁻¹]",
-                0.01,
+            (
+                "mu",
+                "μ (гибель I)",
+                "[день⁻¹]",
+                "Константа скорости гибели иммунных клеток",
+                0.1,
                 0.5,
                 0.0412,
                 0.01,
             ),
-            "d": (
-                "Активация I (d):",
-                "d [мл/(кл·день)]",
-                1e-9,
+            (
+                "d",
+                "d (активация)",
+                "[мл/(кл·день)]",
+                "Константа скорости активации иммунных клеток",
+                1e-10,
                 1e-5,
-                1e-9,
-                1e-9,
+                1.1e-7,
+                1e-10,
             ),
-            "p": (
-                "Стим. цитокинами (p):",
-                "Усиление пролиферации от цитокинов (p), мл/(кл·день)",
-                0.0,
-                1e-4,
-                1e-5,
-                1e-6,
+            (
+                "p",
+                "p (стимуляция)",
+                "[мл/(кл·день)]",
+                "Константа усиления пролиферации под действием цитокинов",
+                1e-12,
+                1e-7,
+                4e-8,
+                1e-12,
             ),
-            "lmbda": (
-                "Распад цитокинов (λ):",
-                "Скорость распада цитокинов (λ), день⁻¹",
+            (
+                "lmbda",
+                "λ (распад цит.)",
+                "[день⁻¹]",
+                "Константа скорости распада цитокинов",
                 10.0,
                 50.0,
                 20.0,
                 1.0,
             ),
-        }
-        initials = {
-            "T0": ("Нач. T (T0):", "Опухолевые клетки (T0), кл/мл", 0, 1_000_000, 500_000.0, 1.0),
-            "I0": ("Нач. I (I0):", "Иммунные клетки (I0), кл/мл", 0, 1_000_000, 320_000.0, 1.0),
-            "C0": ("Нач. C (C0):", "Цитокины (C0), нг/мл", 0, 200, 0.0, 0.1),
-        }
-        times = {
-            "t_start": ("Начало t:", "Начало (t_start), дни", 0.0, 10.0, 0.0, 0.1),
-            "t_end": ("Конец t:", "Конец (t_end), дни", 10.0, 500.0, 120.0, 1.0),
-            "h": ("Шаг h:", "Шаг интегрирования (h), дни", 0.01, 1.0, 0.1, 0.01),
-        }
-
-        for k, v in params.items():
-            self.param_metadata[k] = v
-        for k, v in initials.items():
-            self.param_metadata[k] = v
-        for k, v in times.items():
-            self.param_metadata[k] = v
-
-        g_params = QGroupBox("Параметры модели")
-        g_params.setMaximumWidth(400)
-        vb = QVBoxLayout(g_params)
-        for k, (short, tip, mi, ma, de, st) in params.items():
-            vb.addLayout(
-                self._create_slider_row(short, tip, mi, ma, de, st, self.sliders, self.labels, k)
-            )
-        bottom_layout.addWidget(g_params)
-
-        right_col = QWidget()
-        right_col_layout = QVBoxLayout(right_col)
-        g_init = QGroupBox("Начальные условия")
-        vb = QVBoxLayout(g_init)
-        for k, (short, tip, mi, ma, de, st) in initials.items():
-            vb.addLayout(
-                self._create_slider_row(short, tip, mi, ma, de, st, self.sliders, self.labels, k)
-            )
-        right_col_layout.addWidget(g_init)
-
-        g_time = QGroupBox("Временной интервал и шаг")
-        vb = QVBoxLayout(g_time)
-        for k, (short, tip, mi, ma, de, st) in times.items():
-            vb.addLayout(
-                self._create_slider_row(short, tip, mi, ma, de, st, self.sliders, self.labels, k)
-            )
-        right_col_layout.addWidget(g_time)
-        right_col_layout.addStretch(1)
-
-        bottom_layout.addWidget(right_col)
-        left_layout.addWidget(bottom_left)
-        left_layout.addStretch(1)
-        main_layout.addWidget(left, 3)
-
-        right = QWidget()
-        right_layout = QVBoxLayout(right)
-
-        therapy_types = ["Без терапии", "Постоянная", "Импульсная"]
-        therapy_items = [
-            ("eta_c", "Усиление цитотоксичности (ηc)", 0.0, 1e-4, 0.0, 1e-7, "мл/(клетка·день)"),
-            ("eta_mu", "Снижение гибели иммунных клеток (ημ)", 0.0, 0.4, 0.0, 0.01, "день⁻¹"),
-            ("s_A", "Адоптивный перенос (sA)", 0.0, 1e6, 0.0, 100, "кл/(мл·день)"),
-            ("s_C", "Введение цитокинов (sC)", 0.0, 1e4, 0.0, 10, "нг/(мл·день)"),
+            (
+                "eta_c_val",
+                "Усиление цитотокс. (ηc)",
+                "[мл/(кл·день)]",
+                "Усиление киллинга (до 10*c)",
+                0,
+                1e-5,
+                1.1e-7,
+                1e-10,
+            ),
+            (
+                "eta_mu_val",
+                "Подавление гибели (ημ)",
+                "[день⁻¹]",
+                "Снижение смертности I (не более 0.8*μ)",
+                0,
+                0.4,
+                0.01,
+                0.001,
+            ),
+            (
+                "sC_val",
+                "Скорость ввода цит. (sC)",
+                "[нг/(мл·день)]",
+                "Скорость введения цитокинов",
+                0,
+                1e4,
+                100,
+                10,
+            ),
+            (
+                "sA_val",
+                "Скорость ввода кл. (sA)",
+                "[кл/(мл·день)]",
+                "Скорость введения иммунных клеток",
+                0,
+                1e5,
+                1e2,
+                10,
+            ),
+        ]
+        self.init_list = [
+            (
+                "T0",
+                "T0",
+                "[кл/мл]",
+                "Начальная концентрация опухолевых клеток",
+                1e4,
+                1e8,
+                5e5,
+                1e4,
+            ),
+            (
+                "I0",
+                "I0",
+                "[кл/мл]",
+                "Начальная концентрация иммунных эффекторных клеток",
+                0,
+                1e6,
+                3.2e5,
+                1000,
+            ),
+            (
+                "C0",
+                "C0",
+                "[нг/мл]",
+                "Начальная концентрация цитокинов",
+                0,
+                200,
+                0.1,
+                0.1,
+            ),
+            (
+                "t_end",
+                "t_end",
+                "[Дни]",
+                "Конечное время моделирования",
+                10,
+                900,
+                120,
+                10,
+            ),
+            # Внутри self.init_list в MainWindow.__init__
+            (
+                "sc_start",
+                "Начало курса (sC)",
+                "[день]",
+                "День первого введения цитокинов",
+                0,
+                100,
+                10,  # Начальное значение
+                1,
+            ),
+            (
+                "sc_duration",
+                "Срок курса (sC)",
+                "[дней]",
+                "Продолжительность ежедневной терапии",
+                1,
+                60,
+                14,  # Начальное значение
+                1,
+            ),
         ]
 
-        g_therapy = QGroupBox("Управление терапией")
-        g_therapy.setFixedHeight(190)
-        vb = QVBoxLayout(g_therapy)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
+        self.sliders = {}
+        self.value_labels = {}
+        self.colorbar_ax = None
+        self.show_clinical_checked = True  # Состояние по умолчанию
 
-        for key, title, vmin, vmax, vdef, step, unit in therapy_items:
-            box = QGroupBox(title)
-            vb_box = QVBoxLayout(box)
-            combo = QComboBox()
-            combo.addItems(therapy_types)
-            combo.currentIndexChanged.connect(lambda idx, k=key: self._update_therapy_ui(k, idx))
-            vb_box.addWidget(combo)
-            self.therapy_combos[key] = combo
-            w_const = QWidget()
-            vb_const = QVBoxLayout(w_const)
-            vb_const.setContentsMargins(0, 5, 0, 0)
-            vb_const.addLayout(
-                self._create_slider_row(
-                    "Величина:",
-                    unit,
-                    vmin,
-                    vmax,
-                    vdef,
-                    step,
-                    self.therapy_magnitude_sliders,
-                    {},
-                    f"{key}_const",
-                )
-            )
-            vb_box.addWidget(w_const)
-            self.therapy_widgets[f"{key}_const"] = w_const
-            w_pulse = QWidget()
-            vb_pulse = QVBoxLayout(w_pulse)
-            vb_pulse.setContentsMargins(0, 5, 0, 0)
-            vb_pulse.addLayout(
-                self._create_slider_row(
-                    "Величина:",
-                    unit,
-                    vmin,
-                    vmax,
-                    vdef,
-                    step,
-                    self.therapy_magnitude_sliders,
-                    {},
-                    f"{key}_pulse",
-                )
-            )
-            vb_pulse.addLayout(
-                self._create_slider_row(
-                    "Начало:", "дни", 0, 100, 10, 1, self.therapy_start_sliders, {}, f"{key}_pulse"
-                )
-            )
-            vb_pulse.addLayout(
-                self._create_slider_row(
-                    "Длит-ть:",
-                    "дни",
-                    0,
-                    100,
-                    5,
-                    1,
-                    self.therapy_duration_sliders,
-                    {},
-                    f"{key}_pulse",
-                )
-            )
-            vb_box.addWidget(w_pulse)
-            self.therapy_widgets[f"{key}_pulse"] = w_pulse
-            scroll_layout.addWidget(box)
-        scroll.setWidget(scroll_content)
-        vb.addWidget(scroll)
-        right_layout.addWidget(g_therapy)
+        # --- Main Tab Widget ---
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
 
-        g_analysis = QGroupBox("Параметрический анализ")
-        g_analysis.setFixedHeight(90)
-        vb = QVBoxLayout(g_analysis)
-        vb.setContentsMargins(10, 8, 10, 8)
-        vb.setSpacing(6)
-        hb = QHBoxLayout()
-        hb.setSpacing(16)
-        hb.addWidget(QLabel("Параметр X:"))
-        self.param_combo = QComboBox()
-        self.param_combo.addItems(list(self.param_metadata.keys()))
-        hb.addWidget(self.param_combo, stretch=1)
-        hb.addSpacing(20)
-        hb.addWidget(QLabel("Результат Y:"))
-        self.output_combo = QComboBox()
-        self.output_combo.addItems(
-            ["Опухолевые клетки [кл/мл]", "I (Иммунные клетки)", "C (Цитокины)"]
+        # --- Tab 1: Simulation ---
+        self.simulation_tab = QWidget()
+        self.setup_simulation_tab()
+        self.tabs.addTab(self.simulation_tab, "Визуализация модели")
+
+        # --- Tab 2: Parametric Analysis ---
+        self.analysis_tab = QWidget()
+        self.setup_analysis_tab()
+        self.tabs.addTab(self.analysis_tab, "Параметрический анализ")
+
+        self.update_plot()
+        self.showMaximized()
+
+    def toggle_oy_visibility(self):
+        """Переключает видимость полей для 2D анализа"""
+        is_heatmap = self.analysis_mode_combo.currentText() == "Тепловая карта (2D)"
+        self.oy_settings_widget.setVisible(is_heatmap)
+        self.analysis_param_combo2.setVisible(is_heatmap)
+        # Находим label для combo2 через форму, если нужно:
+        label = self.analysis_param_combo2.parentWidget().findChild(QLabel, "")  # упрощенно
+
+    def setup_simulation_tab(self):
+        main_layout = QHBoxLayout(self.simulation_tab)
+
+        # Левая часть: График
+        plot_frame = QFrame()
+        plot_layout = QVBoxLayout(plot_frame)
+        self.sim_canvas = MplCanvas(self)
+        plot_layout.addWidget(self.sim_canvas)
+
+        # Правая часть: Контроллеры
+        controls_frame = QFrame()
+        controls_frame.setFixedWidth(450)
+        controls_outer_layout = QVBoxLayout(controls_frame)
+        controls_outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_content_widget = QWidget()
+        controls_main_layout = QVBoxLayout(scroll_content_widget)
+
+        # 1. Группа параметров
+        g_params = QGroupBox("Параметры модели")
+        params_vbox = QVBoxLayout(g_params)
+        for params in self.param_list:
+            params_vbox.addWidget(self._create_slider_row(*params))
+        controls_main_layout.addWidget(g_params)
+
+        # 2. Группа начальных условий
+        g_init = QGroupBox("Начальные условия и время")
+        init_vbox = QVBoxLayout(g_init)
+        for params in self.init_list:
+            init_vbox.addWidget(self._create_slider_row(*params))
+        controls_main_layout.addWidget(g_init)
+
+        # 3. Группа ТЕРАПИИ (Вот она)
+        g_therapy = QGroupBox("Режим воздействия")
+        therapy_layout = QVBoxLayout(g_therapy)
+
+        # Сам выбор терапии
+        self.therapy_combo = QComboBox()
+        self.therapy_combo.addItems(
+            [
+                "Без терапии",
+                "Иммунотерапия (sC)",
+                "Адоптивная (sA)",
+                "Ингибирование (ηc, ημ)",
+                "Комбинированная",
+            ]
         )
-        hb.addWidget(self.output_combo, stretch=1)
-        vb.addLayout(hb)
-        btn = QPushButton("Запустить анализ")
-        btn.clicked.connect(self.run_parametric_analysis)
-        vb.addWidget(btn)
-        right_layout.addWidget(g_analysis)
-        right_layout.addWidget(self.canvas_param)
-        self.canvas_param.setFixedSize(480, 380)
-        main_layout.addWidget(right, 2)
+        self.therapy_combo.currentIndexChanged.connect(self.update_plot)
+        therapy_layout.addWidget(self.therapy_combo)
 
-        for key in self.therapy_combos:
-            self._update_therapy_ui(key, self.therapy_combos[key].currentIndex())
+        # Настройки тайминга
+        timing_layout = QFormLayout()
 
-    def _init_plots(self):
-        ax = self.figure_main.add_subplot(111)
-        ax.set_xlabel("Время, дни")
-        ax.set_ylabel("Концентрация (кл/мл)")
-        ax.grid(True)
-        self.figure_main.tight_layout()
-        axp = self.figure_param.add_subplot(111)
-        axp.set_xlabel("Значение параметра")
-        axp.set_ylabel("Конечное значение")
-        axp.grid(True)
-        self.figure_param.set_constrained_layout(True)
+        self.start_day_input = QSpinBox()
+        self.start_day_input.setRange(0, 1000)
+        self.start_day_input.setValue(20)
+        self.start_day_input.setSuffix(" день")
+        self.start_day_input.valueChanged.connect(self.update_plot)
 
-    def _update_therapy_ui(self, key, idx):
-        self.therapy_widgets[f"{key}_const"].setVisible(idx == 1)
-        self.therapy_widgets[f"{key}_pulse"].setVisible(idx == 2)
-        if not self.is_init:
-            self.run_simulation()
+        self.interval_input = QSpinBox()
+        self.interval_input.setRange(1, 200)
+        self.interval_input.setValue(20)
+        self.interval_input.setSuffix(" дн.")
+        self.interval_input.valueChanged.connect(self.update_plot)
 
-    def _get_therapy_func(self, key):
-        idx = self.therapy_combos[key].currentIndex()
-        if idx == 1:
-            mag = self._slider_to_value(self.therapy_magnitude_sliders[f"{key}_const"])
-            return constant_therapy(mag)
-        if idx == 2:
-            mag = self._slider_to_value(self.therapy_magnitude_sliders[f"{key}_pulse"])
-            start = self._slider_to_value(self.therapy_start_sliders[f"{key}_pulse"])
-            dur = self._slider_to_value(self.therapy_duration_sliders[f"{key}_pulse"])
-            return pulsed_therapy(mag, start, dur)
-        return no_therapy
+        self.count_input = QSpinBox()
+        self.count_input.setRange(1, 50)
+        self.count_input.setValue(3)
+        self.count_input.setSuffix(" раз")
+        self.count_input.valueChanged.connect(self.update_plot)
 
-    def run_simulation(self):
+        timing_layout.addRow("Начало терапии:", self.start_day_input)
+        timing_layout.addRow("Интервал между:", self.interval_input)
+        timing_layout.addRow("Количество доз:", self.count_input)
+
+        therapy_layout.addLayout(timing_layout)
+
+        # Добавляем готовую группу в основной макет один раз
+        controls_main_layout.addWidget(g_therapy)
+
+        # 4. Группа AUC
+        g_auc = QGroupBox("Анализ токсичности (AUC)")
+        auc_layout = QFormLayout(g_auc)
+        self.auc_day_input = QSpinBox()
+        self.auc_day_input.setRange(1, 1000)
+        self.auc_day_input.setValue(120)
+        self.auc_day_input.valueChanged.connect(self.update_plot)
+        self.auc_result_label = QLabel("AUC: ---")
+        self.auc_result_label.setStyleSheet("font-weight: bold; color: #2c3e50;")
+        auc_layout.addRow("Расчет до дня:", self.auc_day_input)
+        auc_layout.addRow(self.auc_result_label)
+        controls_main_layout.addWidget(g_auc)
+
+        # 5. Кнопки и чекбоксы
+        self.show_clinical_cb = QCheckBox("Показывать клинические данные")
+        self.show_clinical_cb.setChecked(True)
+        self.show_clinical_cb.stateChanged.connect(self.update_plot)
+        controls_main_layout.addWidget(self.show_clinical_cb)
+
+        fit_button = QPushButton("Подобрать параметры (c, d)")
+        fit_button.clicked.connect(self._fit_parameters)
+        controls_main_layout.addWidget(fit_button)
+
+        controls_main_layout.addStretch()
+
+        # 1. Создаем кнопку
+        self.btn_save_svg = QPushButton("Сохранить график в SVG")
+
+        # 2. Если хотите, можно задать ей тот же 14-й шрифт для единообразия
+        font = self.btn_save_svg.font()
+        font.setPointSize(12)  # Кнопку можно чуть меньше, чем график
+        self.btn_save_svg.setFont(font)
+
+        # 3. Добавляем кнопку в ваш layout (слой) под графиком sim_canvas
+        # Например, если у вас там QVBoxLayout:
+        # validation_layout.addWidget(self.sim_canvas)
+        controls_main_layout.addWidget(self.btn_save_svg)
+
+        # 4. Привязываем клик к методу сохранения
+        self.btn_save_svg.clicked.connect(self.save_plot_to_svg)
+
+        scroll_area.setWidget(scroll_content_widget)
+        controls_outer_layout.addWidget(scroll_area)
+
+        main_layout.addWidget(plot_frame, 1)
+        main_layout.addWidget(controls_frame)
+
+    def save_plot_to_svg(self):
+        # 1. Открываем диалог сохранения файла с фильтром только на .svg
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Сохранить график",
+            "model_validation_plot.svg",  # Имя файла по умолчанию
+            "Векторная графика (*.svg)",  # Фильтр расширений
+        )
+
+        # 2. Если пользователь не нажал "Отмена" и выбрал путь
+        if file_path:
+            try:
+                # Магия matplotlib: сохраняем фигуру из холста
+                # bbox_inches='tight' гарантирует, что крупные шрифты STIX не обрежутся по краям
+                self.sim_canvas.fig.savefig(file_path, format="svg", bbox_inches="tight")
+
+                # Показываем красивое уведомление об успешном сохранении
+                QMessageBox.information(self, "Успех", f"График успешно сохранен в:\n{file_path}")
+
+            except Exception as e:
+                # На случай, если файл открыт в другой программе или нет прав на запись
+                QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить файл:\n{str(e)}")
+
+    def save_analysis_plot(self):
+        """Сохранение текущего графика в векторный формат SVG"""
+        # Формируем предлагаемое имя файла на основе выбранной метрики
+        metric_name = self.analysis_metric_combo.currentText().replace(" ", "_")
+
+        # Открываем диалоговое окно для выбора пути
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Сохранить график",
+            f"analysis_{metric_name}.svg",
+            "SVG Files (*.svg);;PNG Files (*.png);;All Files (*)",
+        )
+
+        if file_path:
+            try:
+                # Сохраняем всю фигуру целиком
+                # bbox_inches='tight' убирает лишние белые поля вокруг графика
+                self.analysis_canvas.fig.savefig(file_path, format="svg", bbox_inches="tight")
+                print(f"График успешно сохранен: {file_path}")
+            except Exception as e:
+                print(f"Ошибка при сохранении: {e}")
+
+    def setup_analysis_tab(self):
+        layout = QVBoxLayout(self.analysis_tab)
+
+        # Создаем основной вертикальный лейаут для настроек
+        self.main_settings_layout = QVBoxLayout()
+
+        controls_group = QGroupBox("Настройки анализа")
+        controls_layout = QHBoxLayout(controls_group)
+        form_layout = QFormLayout()
+
+        # 1. Инициализация комбобоксов
+        self.analysis_param_combo = QComboBox()
+        self.analysis_param_combo2 = QComboBox()
+        self.analysis_mode_combo = QComboBox()
+        self.analysis_metric_combo = QComboBox()
+
+        # 2. Наполнение данными
+        all_param_names = [p[1] for p in self.param_list] + [p[1] for p in self.init_list]
+        self.analysis_param_combo.addItems(all_param_names)
+        self.analysis_param_combo2.addItems(all_param_names)
+        self.analysis_param_combo2.setCurrentIndex(2)
+
+        self.analysis_mode_combo.addItems(["Семейство кривых (1D)", "Тепловая карта (2D)"])
+
+        self.metrics_map = {
+            "Пиковая концентрация": "max",
+            "Время до пика (дни)": "t_max",
+            "Скорость роста (Log10/день)": "growth",
+            r"Интегральная нагрузка ($AUC_{norm}$)": "auc",
+            "Период рецидивов (дни)": "period",  # ДОБАВЛЕНО
+            "Амплитуда \nколебаний": "amplitude",  # ДОБАВЛЕНО
+        }
+        self.analysis_metric_combo.addItems(self.metrics_map.keys())
+
+        # 3. Настройка числовых вводов
+        self.analysis_range_start = QDoubleSpinBox()
+        self.analysis_range_start.setRange(0.001, 100.0)
+        self.analysis_range_start.setValue(0.5)
+
+        self.analysis_range_end = QDoubleSpinBox()
+        self.analysis_range_end.setRange(0.01, 1000.0)
+        self.analysis_range_end.setValue(2.0)
+
+        self.analysis_steps = QSpinBox()
+        self.analysis_steps.setRange(3, 50)
+        self.analysis_steps.setValue(10)
+
+        # 4. Секция OY (только для Heatmap)
+        self.oy_settings_widget = QWidget()  # Создаем контейнер для удобного скрытия
+        oy_layout = QHBoxLayout(self.oy_settings_widget)
+        self.label_oy = QLabel("Диапазон OY (множитель):")
+        self.oy_min = QDoubleSpinBox()
+        self.oy_max = QDoubleSpinBox()
+        self.oy_min.setValue(0.5)
+        self.oy_max.setValue(2.0)
+        self.oy_max.setMaximum(1000000.0)
+        oy_layout.addWidget(self.label_oy)
+        oy_layout.addWidget(self.oy_min)
+        oy_layout.addWidget(self.oy_max)
+
+        # 5. Добавление в форму
+        form_layout.addRow("Режим анализа:", self.analysis_mode_combo)
+        form_layout.addRow("Метрика:", self.analysis_metric_combo)
+        form_layout.addRow("Параметр X:", self.analysis_param_combo)
+
+        range_layout = QHBoxLayout()
+        range_layout.addWidget(self.analysis_range_start)
+        range_layout.addWidget(QLabel("до"))
+        range_layout.addWidget(self.analysis_range_end)
+        form_layout.addRow("Диапазон X (отн.):", range_layout)
+
+        form_layout.addRow("Параметр Y (2D):", self.analysis_param_combo2)
+        form_layout.addRow(self.oy_settings_widget)
+        form_layout.addRow("Шагов расчета:", self.analysis_steps)
+
+        # 6. Кнопка и сигналы
+        self.analysis_run_button = QPushButton("Запустить расчет")
+        self.analysis_run_button.clicked.connect(self._run_analysis)
+
+        self.save_button = QPushButton("Сохранить SVG")
+        self.save_button.clicked.connect(self.save_analysis_plot)
+
+        controls_layout.addLayout(form_layout)
+        controls_layout.addWidget(self.analysis_run_button)
+        controls_layout.addWidget(self.save_button)  # Добавьте эту строку
+
+        layout.addWidget(controls_group)
+
+        # Холст
+        self.analysis_canvas = MplCanvas(self)
+        layout.addWidget(self.analysis_canvas)
+
+        # ПОДКЛЮЧЕНИЕ СИГНАЛА ВИДИМОСТИ
+        self.analysis_mode_combo.currentIndexChanged.connect(self.toggle_oy_visibility)
+        self.toggle_oy_visibility()  # Вызвать сразу для настройки начального вида
+
+    def _calculate_metric(self, t, T, metric_type):
+        """Вычисляет выбранную статистическую метрику по кривой роста опухоли"""
+        if len(T) == 0:
+            return 0
+
+        if metric_type == "max":
+            return np.max(T)
+
+        elif metric_type == "t_max":
+            return t[np.argmax(T)]
+
+        elif metric_type == "growth":
+            # Берем первые 10% времени для оценки начальной скорости
+            idx = max(2, len(t) // 10)
+            t_start, T_start = t[:idx], T[:idx]
+
+            # Наклон в логарифмической шкале (Log10 единиц в день)
+            valid = T_start > 0
+            if np.sum(valid) > 1:
+                # linregress возвращает (slope, intercept, rvalue, pvalue, stderr)
+                slope, _, _, _, _ = linregress(t_start[valid], np.log10(T_start[valid]))
+                return slope
+            return 0
+
+        elif metric_type == "auc":
+            # Проверка: фильтруем неположительные значения для логарифмической AUC
+            mask = T > 0
+            if np.sum(mask) < 2:
+                return 0
+            # Убираем np.log10, чтобы метрика соответствовала AUC_LIMIT
+            return np.trapezoid(T[mask], t[mask])
+
+        elif metric_type == "period":
+            return calculate_oscillation_period(t, T)
+
+        elif metric_type == "amplitude":  # НОВАЯ МЕТРИКА
+            # Амплитуда как разность между пиком и глубокой ремиссией
+            # В логарифмических моделях иногда полезнее считать лог-амплитуду,
+            # но для диплома лучше оставить линейную разность:
+            t_max = np.max(T)
+            t_min = np.min(T)
+            return t_max - t_min
+
+        return 0
+
+    def load_clinical_data(self):
         try:
-            p = {
-                k: self._slider_to_value(s)
-                for k, s in self.sliders.items()
-                if k in {"a", "b", "c", "mu", "d", "p", "lmbda"}
-            }
-            y0 = [self._slider_to_value(self.sliders[k]) for k in ("T0", "I0", "C0")]
-            t_start = self._slider_to_value(self.sliders["t_start"])
-            t_end = self._slider_to_value(self.sliders["t_end"])
-            h = self._slider_to_value(self.sliders["h"])
+            df = pd.read_csv("data/siu_low.csv")
+            df = df.rename(columns={"log10_cells": "linear_cells"})
+            Y, E = df["linear_cells"].values, df["y_error"].values
+            valid_indices = (Y > 0) & (Y - E >= 0)
+            df = df.loc[valid_indices].copy()
+            Y, E = df["linear_cells"].values, df["y_error"].values
+            D_log = np.log10(1 + E / Y)
+            Y_lower_linear_bound = Y / (10**D_log)
+            Y_upper_linear_bound = Y * (10**D_log)
+            self.clinical_data_yerr = np.array([Y - Y_lower_linear_bound, Y_upper_linear_bound - Y])
+            self.clinical_data = df
+        except Exception as e:
+            self.clinical_data = None
+            print(f"Error loading clinical data: {e}")
 
-            if h <= 0 or t_end <= t_start:
-                raise ValueError("Некорректный временной интервал или шаг")
+    def run_simulation(self, params, y0, t_span):
+        a, b, c, mu, d, p, lmbda = params[:7]
+        v1, v2, v3, v4 = self.get_therapy_functions()
 
-            if h > (t_end - t_start):
-                h = (t_end - t_start) / 100
-                QMessageBox.information(self, "Внимание", f"Шаг уменьшен до {h:.4f}")
+        def ode(t, y):
+            # Передаем всё по порядку
+            return tic_ode_system(t, y, a, b, c, mu, d, p, lmbda, v1, v2, v3, v4)
 
-            args = (
-                p["a"],
-                p["b"],
-                p["c"],
-                p["mu"],
-                p["d"],
-                p["p"],
-                p["lmbda"],
-                self._get_therapy_func("eta_c"),
-                self._get_therapy_func("eta_mu"),
-                self._get_therapy_func("s_A"),
-                self._get_therapy_func("s_C"),
+        # Создаем сетку времени от 0 до конца t_span
+        t_eval_points = np.linspace(t_span[0], t_span[1], 500)
+
+        sol = solve_ivp(
+            ode,
+            t_span,
+            y0,
+            method="BDF",
+            rtol=1e-6,
+            atol=1e-9,
+            max_step=1.0,
+            t_eval=t_eval_points,
+            vectorized=True,  # Если твоя функция системы поддерживает это
+        )
+        return (
+            (sol.t, sol.y.T)
+            if sol.success
+            else (np.array([0.0, t_span[1]]), np.full((len(t_span), 3), np.nan))
+        )
+
+    def _create_slider_row(self, key, name, units, tooltip, min_val, max_val, init_val, step):
+        row_widget = QWidget()
+        row_layout = QVBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 5, 0, 5)
+        label_layout = QHBoxLayout()
+        name_label = QLabel(f"<b>{name}</b> {units}")
+        tooltip_label = QLabel("(?)")
+        tooltip_label.setToolTip(tooltip)
+        label_layout.addWidget(name_label)
+        label_layout.addStretch()
+        label_layout.addWidget(tooltip_label)
+        slider_layout = QHBoxLayout()
+        slider = QSlider(Qt.Horizontal)
+        multiplier = 1.0 / step if step > 0 else 1.0
+        slider.setRange(int(min_val * multiplier), int(max_val * multiplier))
+        slider.setValue(int(init_val * multiplier))
+        slider.setSingleStep(1)
+        val_text = self._format_value(key, init_val)
+        value_label = QLabel(val_text)
+        value_label.setFixedWidth(80)
+        value_label.setAlignment(Qt.AlignRight)
+        slider_layout.addWidget(slider)
+        slider_layout.addWidget(value_label)
+        row_layout.addLayout(label_layout)
+        row_layout.addLayout(slider_layout)
+        slider.valueChanged.connect(partial(self.update_label_text, key))
+        slider.sliderReleased.connect(self.update_plot)
+        self.sliders[key] = (slider, multiplier)
+        self.value_labels[key] = value_label
+        return row_widget
+
+    def _format_value(self, key, value):
+        if key in ["T0", "I0", "t_end"]:
+            return f"{value:,.0f}"
+        if value < 0.01 and value != 0:
+            return f"{value:.1e}"
+        return f"{value:,.2f}"
+
+    def get_therapy_functions(self):
+        mode = self.therapy_combo.currentText()
+
+        # Считываем интенсивность из слайдеров
+        sC_amp = self.get_slider_value("sC_val")
+        sA_amp = self.get_slider_value("sA_val")
+        ec_amp = self.get_slider_value("eta_c_val")
+        em_amp = self.get_slider_value("eta_mu_val")
+
+        # Считываем параметры ГРАФИКА ТЕРАПИИ из SpinBox'ов интерфейса
+        t_start = self.start_day_input.value()
+        t_interval = self.interval_input.value()
+        t_count = self.count_input.value()
+
+        # Параметры для sC (цитокины) из слайдеров
+        sc_start_slider = self.get_slider_value("sc_start")
+        sc_duration_slider = self.get_slider_value("sc_duration")
+        sc_end_slider = sc_start_slider + sc_duration_slider
+
+        def zero(t):
+            return 0.0
+
+        self.active_injection_days = []
+        v1, v2, v3, v4 = zero, zero, zero, zero
+
+        if mode == "Без терапии":
+            return v1, v2, v3, v4
+
+        # 1. Монотерапия цитокинами (sC)
+        elif mode == "Иммунотерапия (sC)":
+            self.active_injection_days = [
+                d for d in range(int(sc_start_slider), int(sc_end_slider))
+            ]
+            v3 = lambda t: (
+                sC_amp if (sc_start_slider <= t <= sc_end_slider and t % 1 < 0.5) else 0.0
             )
 
-            t, y = solve_rk4(tic_ode_system, y0, (t_start, t_end), h, args)
+        # 2. Адоптивная терапия (sA) - ТЕПЕРЬ ДИНАМИЧЕСКАЯ
+        elif mode == "Адоптивная (sA)":
+            # Генерируем дни на лету: [20, 40, 60...]
+            days = [t_start + i * t_interval for i in range(t_count)]
+            self.active_injection_days = days
 
-            ax = self.figure_main.axes[0]
-            ax.clear()
-            ax.plot(t, y[:, 0], label="T (опухоль)", linestyle="-", linewidth=2)
-            # ax.plot(t, y[:, 1], label="I (иммунитет)", linestyle="--", linewidth=2)
+            # Функция проверки: попадает ли текущее время t в окно инъекции (1 сутки)
+            v4 = lambda t: sA_amp if any(d <= t <= d + 1 for d in days) else 0.0
 
-            t_exp, y_exp = self._load_experimental_data()
-            if t_exp is not None:
-                ax.scatter(
-                    t_exp,
-                    y_exp,
-                    marker="o",
-                    s=40,
-                    facecolors="none",
-                    edgecolors="red",
-                    label="Эксперимент (Siu 1986)",
-                )
+        # 3. Ингибирование
+        elif mode == "Ингибирование (ηc, ημ)":
+            v1 = lambda t: ec_amp
+            v2 = lambda t: em_amp
 
-                # --- НАЧАЛО БЛОКА РАСЧЕТА ОШИБОК ---
+        # 4. Комбинированная
+        elif mode == "Комбинированная":
+            days = [t_start + i * t_interval for i in range(t_count)]
+            self.active_injection_days = days
+            v1 = lambda t: ec_amp * 0.5
+            v2 = lambda t: em_amp * 0.5
+            v3 = lambda t: sC_amp if any(d <= t <= d + 1 for d in days) else 0.0
+            v4 = lambda t: sA_amp if any(d <= t <= d + 1 for d in days) else 0.0
 
-                # 1. Выбираем только те экспериментальные точки, которые попадают в наш временной интервал
-                valid_indices = (t_exp >= t_start) & (t_exp <= t_end)
-                t_exp_valid = t_exp[valid_indices]
-                y_exp_valid = y_exp[valid_indices]
+        return v1, v2, v3, v4
 
-                if len(t_exp_valid) > 1:  # Убедимся, что у нас есть точки для сравнения
-                    # 2. Интерполируем значения модели на временные точки эксперимента
-                    y_model_interp = np.interp(t_exp_valid, t, y[:, 0])
+    def get_slider_value(self, name):
+        slider, multiplier = self.sliders[name]
+        return slider.value() / multiplier
 
-                    # 3. Рассчитываем RMSE
-                    rmse = np.sqrt(np.mean((y_exp_valid - y_model_interp) ** 2))
+    def update_label_text(self, key):
+        slider, multiplier = self.sliders[key]
+        val = slider.value() / multiplier
+        self.value_labels[key].setText(self._format_value(key, val))
 
-                    # 4. Рассчитываем R^2
-                    ss_res = np.sum((y_exp_valid - y_model_interp) ** 2)
-                    ss_tot = np.sum((y_exp_valid - np.mean(y_exp_valid)) ** 2)
-                    if ss_tot > 0:  # Избегаем деления на ноль, если все точки y_exp одинаковы
-                        r_squared = 1 - (ss_res / ss_tot)
-                    else:
-                        r_squared = 1.0  # Если нет вариации, модель идеальна
+    def _set_slider_value(self, name, value):
+        slider, multiplier = self.sliders[name]
+        slider.setValue(int(value * multiplier))
 
-                    # 5. Выводим текст с ошибками на график
-                    error_text = f"RMSE: {rmse:,.0f}\n$R^2$: {r_squared:.3f}"
-                    ax.text(
-                        0.95,
-                        0.95,
-                        error_text,
-                        transform=ax.transAxes,
-                        fontsize=9,
-                        verticalalignment="top",
-                        horizontalalignment="right",
-                        bbox=dict(boxstyle="round,pad=0.4", fc="wheat", alpha=0.5),
-                    )
+    def _calculate_error(self, sol):
+        clinical_times = self.clinical_data["time_days"].values
+        clinical_T = self.clinical_data["linear_cells"].values
 
-                # --- КОНЕЦ БЛОКА РАСЧЕТА ОШИБОК ---
+        # Интерполируем решение модели на точки времени из данных
+        f_interp = interp1d(
+            sol.t, sol.y[0], bounds_error=False, fill_value=(sol.y[0, 0], sol.y[0, -1])
+        )
+        T_pred = f_interp(clinical_times)
 
-            ax.set_xlabel("Время [дни]")
-            ax.set_ylabel("Опухолевые клетки [кл/мл] (лог. шкала)")
-            ax.set_yscale("symlog", linthresh=1e5)
-            # ax.set_ylim(1e5, 1e9)
-            ax.legend()
-            ax.grid(True)
-            self.canvas_main.draw()
+        # Считаем ошибку в логарифмической шкале (так лучше для экспоненциальных процессов)
+        mask = (clinical_T > 0) & (T_pred > 0)
+        if np.sum(mask) < 2:
+            return 1e10
 
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", str(e))
+        mse = np.mean((np.log10(clinical_T[mask]) - np.log10(T_pred[mask])) ** 2)
+        return mse
 
-    def run_parametric_analysis(self):
+    def _cost_function(self, log_params, static_params, y0, t_span):
+        c_val = 10 ** log_params[0]
+        d_val = 10 ** log_params[1]
+
+        # Подготавливаем функции терапии (обычно при фитинге они нулевые)
+        v1, v2, v3, v4 = self.get_therapy_functions()
+
         try:
-            base_p = {
-                k: self._slider_to_value(s)
-                for k, s in self.sliders.items()
-                if k in {"a", "b", "c", "mu", "d", "p", "lmbda"}
-            }
-            base_y0 = [self._slider_to_value(self.sliders[k]) for k in ("T0", "I0", "C0")]
-            t_start = self._slider_to_value(self.sliders["t_start"])
-            t_end = self._slider_to_value(self.sliders["t_end"])
-            h = self._slider_to_value(self.sliders["h"])
+            sol = solve_ivp(
+                tic_ode_system,
+                t_span,
+                y0,
+                args=(
+                    static_params["a"],
+                    static_params["b"],
+                    c_val,
+                    static_params["mu"],
+                    d_val,
+                    static_params["p"],
+                    static_params["lmbda"],
+                    v1,
+                    v2,
+                    v3,
+                    v4,
+                ),
+                method="BDF",
+                vectorized=True,
+            )
+            if not sol.success:
+                return 1e10
 
-            key_to_vary = self.param_combo.currentText()
+            error = self._calculate_error(sol)
 
-            config_tuple = self.param_metadata.get(key_to_vary)
-            if not config_tuple:
-                QMessageBox.warning(
-                    self, "Ошибка", f"Конфигурация для параметра {key_to_vary} не найдена"
+            # print(f"DEBUG: c={c_val:.2e} d={d_val:.2e} -> MSE={error:.6f}")
+
+            return error
+
+        except Exception:
+            return 1e10
+
+    def _fit_parameters(self):
+        if self.clinical_data is None or len(self.clinical_data) == 0:
+            QMessageBox.warning(self, "Ошибка", "Нет клинических данных!")
+            return
+
+        # --- ДОБАВЛЕНО ДЛЯ ДЕБАГА ---
+        self.fit_call_count = 0
+        print("\n--- Запуск оптимизации ---")
+        # ----------------------------
+
+        previous_therapy = self.therapy_combo.currentText()
+        static = {p[0]: self.get_slider_value(p[0]) for p in self.param_list}
+        y0 = [
+            self.get_slider_value("T0"),
+            self.get_slider_value("I0"),
+            self.get_slider_value("C0"),
+        ]
+        t_span = (0, self.get_slider_value("t_end"))
+
+        # В differential_evolution передаем дополнительные аргументы через args
+        result = differential_evolution(
+            self._cost_function,
+            bounds=[
+                (np.log10(1e-10), np.log10(1e-5)),
+                (np.log10(1e-10), np.log10(1e-5)),
+            ],
+            args=(static, y0, t_span),
+            popsize=15,
+            workers=1,
+            callback=self._optimization_callback,
+            polish=True,  # Дополнительная локальная оптимизация в конце
+        )
+        optimal_c = 10 ** result.x[0]
+        optimal_d = 10 ** result.x[1]
+        final_cost = result.fun
+        print("=" * 80)
+        print("ОПТИМИЗАЦИЯ ЗАВЕРШЕНА")
+        print(f"c = {optimal_c:.3e}")
+        print(f"d = {optimal_d:.3e}")
+        print(f"Final Cost = {final_cost:.5f}")
+        print("=" * 80)
+        # Возвращаем предыдущий тип терапии
+        self.therapy_combo.setCurrentText(previous_therapy)
+        self._set_slider_value("c", optimal_c)
+        self._set_slider_value("d", optimal_d)
+        self.update_plot()
+
+    def _optimization_callback(self, xk, convergence=None):
+        """
+        xk: текущий лучший вектор параметров [log10(c), log10(d)]
+        convergence: коэффициент сходимости (от 0 до 1)
+        """
+        self.fit_call_count += 1
+        c_current = 10 ** xk[0]
+        d_current = 10 ** xk[1]
+
+        print(
+            f"Итерация {self.fit_call_count:03d} | "
+            f"Текущие параметры: c={c_current:.3e}, d={d_current:.3e} | "
+            f"Сходимость: {convergence:.2%}"
+        )
+
+    def update_plot(self):
+        # 1. Получаем текущие значения параметров со слайдеров
+        params = [self.get_slider_value(p[0]) for p in self.param_list]
+        y0 = [
+            self.get_slider_value("T0"),
+            self.get_slider_value("I0"),
+            self.get_slider_value("C0"),
+        ]
+        t_span = (0, self.get_slider_value("t_end"))
+
+        # 2. Запуск симуляции
+        t_values, y_values = self.run_simulation(params, y0, t_span)
+
+        if np.any(np.isnan(y_values)):
+            print("WARNING: ODE solver produced NaN. Check therapy doses or tolerances.")
+            self.auc_result_label.setText("Ошибка расчета (NaN)")
+            return
+
+        T, I = y_values[:, 0], y_values[:, 1]
+
+        start_day = self.start_day_input.value()
+        interval = self.interval_input.value()
+        count = self.count_input.value()
+
+        self.active_injection_days = [start_day + i * interval for i in range(count)]
+
+        # 3. Очистка осей перед перерисовкой
+        self.sim_canvas.axes.cla()
+
+        # 4. Расчет AUC
+        target_day = self.auc_day_input.value()
+        mask = t_values <= target_day
+        t_auc = t_values[mask]
+        T_auc = T[mask]
+
+        if len(t_auc) > 1:
+            auc_value = np.trapezoid(T_auc, t_auc)
+            auc_log_value = np.trapezoid(np.log10(np.maximum(T_auc, 1.0)), t_auc)
+            self.auc_result_label.setText(f"AUC: {auc_value:.2e}")
+            self.auc_result_label.setToolTip(f"Log10 AUC: {auc_log_value:.2f}")
+            self.sim_canvas.axes.axvline(x=target_day, color="gray", linestyle=":", alpha=0.5)
+        else:
+            self.auc_result_label.setText("AUC: (вне диапазона)")
+
+        # 5. Отрисовка модельных кривых
+        self.sim_canvas.axes.plot(
+            t_values, T, label="Опухолевые клетки (модель)", linewidth=3, linestyle="-"
+        )
+        self.sim_canvas.axes.plot(
+            t_values, I, label="Иммунные клетки (модель)", linewidth=3, linestyle="--"
+        )
+
+        # 6. Отрисовка меток терапии (инъекций)
+        mode = self.therapy_combo.currentText()
+        if mode != "Без терапии":
+            # Линия для легенды (рисуем один раз)
+            self.sim_canvas.axes.plot(
+                [], [], color="blue", linestyle="--", alpha=0.3, label="Инъекция"
+            )
+            # Реальные моменты впрыска
+            for day in self.active_injection_days:
+                if day <= t_span[1]:
+                    self.sim_canvas.axes.axvline(x=day, color="blue", linestyle="--", alpha=0.2)
+
+        # 7. Обработка клинических данных и расчет R^2
+        if self.show_clinical_cb.isChecked() and self.clinical_data is not None:
+            clinical_times = self.clinical_data["time_days"].values
+            clinical_T = self.clinical_data["linear_cells"].values
+
+            # Отрисовка клинических точек
+            self.sim_canvas.axes.errorbar(
+                clinical_times,
+                clinical_T,
+                yerr=self.clinical_data_yerr,
+                fmt="o",
+                color="red",
+                label="Клинические данные",
+                markersize=7,
+                capsize=5,
+                alpha=0.7,
+            )
+
+            # Расчет R^2 через интерполяцию модели на время клиники
+            f_interp = interp1d(t_values, T, bounds_error=False, fill_value=(T[0], T[-1]))
+            T_pred = f_interp(clinical_times)
+
+            r2_text = "N/A"
+            valid = (clinical_T > 0) & (T_pred > 0)
+            if np.sum(valid) > 2:
+                slope, intercept, r_value, p_value, std_err = linregress(
+                    np.log10(clinical_T[valid]), np.log10(T_pred[valid])
                 )
-                return
+                r2_text = f"{r_value**2:.3f}"
 
-            _, _, vmin, vmax, _, _ = config_tuple
+            # 8. Отображение плашки R^2 (ТЕПЕРЬ ВНУТРИ УСЛОВИЯ)
+            self.sim_canvas.axes.text(
+                0.02,
+                0.98,
+                f"$R^2 = {r2_text}$",
+                transform=self.sim_canvas.axes.transAxes,
+                fontsize=20,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.5),
+            )
 
-            ax = self.figure_param.axes[0]
-            ax.clear()
+        # 9. Динамическая настройка лимитов Y (для логарифмической шкалы)
+        all_y_data = []
+        if len(y_values) > 0:
+            T_vals, I_vals = y_values[:, 0], y_values[:, 1]
+            all_y_data.extend(T_vals[T_vals > 0])
+            all_y_data.extend(I_vals[I_vals > 0])
 
-            if vmin > 0 and vmax / vmin > 100:
-                values_to_test = np.logspace(np.log10(vmin), np.log10(vmax), 25)
-                ax.set_xscale("log")
-                ax.xaxis.set_major_formatter(LogFormatter(base=10, labelOnlyBase=False))
+        if self.show_clinical_cb.isChecked() and self.clinical_data is not None:
+            c_vals = self.clinical_data["linear_cells"].values
+            all_y_data.extend(c_vals[c_vals > 0])
+
+        if all_y_data:
+            y_min, y_max = np.min(all_y_data), np.max(all_y_data)
+            self.sim_canvas.axes.set_ylim(y_min * 0.5, y_max * 2.0)
+
+        # 10. Финальное оформление
+        self.sim_canvas.axes.set_xlabel("Время [дни]")
+        self.sim_canvas.axes.set_ylabel("Концентрация клеток [кл/мл]")
+        self.sim_canvas.axes.legend(loc="lower right")
+        self.sim_canvas.axes.grid(True, which="both", alpha=0.3)
+        self.sim_canvas.axes.set_yscale("log")
+
+        # Обновление холста
+        self.sim_canvas.fig.tight_layout()
+        self.sim_canvas.draw()
+
+    def _run_analysis(self):
+        # 1. Сразу блокируем интерфейс
+        self.analysis_run_button.setEnabled(False)
+        self.analysis_run_button.setText("Выполняется...")
+        # Позволяем Qt перерисовать кнопку (сделать её серой) перед тяжелым циклом
+        QApplication.processEvents()
+
+        try:
+            # Создаем карту параметров один раз для всех режимов
+            param_map = {p[1]: p[0] for p in self.param_list + self.init_list}
+            metric_display_name = self.analysis_metric_combo.currentText()
+            metric_key = self.metrics_map[metric_display_name]
+
+            start_mult = self.analysis_range_start.value()
+            end_mult = self.analysis_range_end.value()
+            num_steps = self.analysis_steps.value()
+
+            if self.analysis_mode_combo.currentText() == "Семейство кривых (1D)":
+                param_name = self.analysis_param_combo.currentText()
+                param_key = param_map[param_name]
+
+                results, param_values = self._run_parameter_sweep(
+                    param_key, start_mult, end_mult, num_steps
+                )
+
+                metric_values = [
+                    self._calculate_metric(res["t"], res["T"], metric_key) for res in results
+                ]
+
+                self._plot_family_of_curves(
+                    results, param_key, param_values, metric_values, metric_display_name
+                )
+
             else:
-                values_to_test = np.linspace(vmin, vmax, 25)
-                ax.set_xscale("linear")
+                # Логика для Heatmap (2D)
+                p1_name = self.analysis_param_combo.currentText()
+                p2_name = self.analysis_param_combo2.currentText()
+                p1_key, p2_key = param_map[p1_name], param_map[p2_name]
 
-            results = []
-            output_idx = self.output_combo.currentIndex()
+                # Расчет диапазонов
+                range1 = [
+                    self.get_slider_value(p1_key) * start_mult,
+                    self.get_slider_value(p1_key) * end_mult,
+                ]
+                range2 = [
+                    self.get_slider_value(p2_key) * start_mult,
+                    self.get_slider_value(p2_key) * end_mult,
+                ]
 
-            for val in values_to_test:
-                current_p = base_p.copy()
-                current_y0 = base_y0[:]
-
-                if key_to_vary in current_p:
-                    current_p[key_to_vary] = val
-                elif key_to_vary in ("T0", "I0", "C0"):
-                    current_y0[["T0", "I0", "C0"].index(key_to_vary)] = val
-
-                args = (
-                    current_p["a"],
-                    current_p["b"],
-                    current_p["c"],
-                    current_p["mu"],
-                    current_p["d"],
-                    current_p["p"],
-                    current_p["lmbda"],
-                    self._get_therapy_func("eta_c"),
-                    self._get_therapy_func("eta_mu"),
-                    self._get_therapy_func("s_A"),
-                    self._get_therapy_func("s_C"),
+                p1_vals, p2_vals, z_matrix = self._run_2d_analysis(
+                    p1_key, range1, p2_key, range2, steps=num_steps
                 )
 
-                _, y = solve_rk4(tic_ode_system, current_y0, (t_start, t_end), h, args)
-
-                results.append(y[-1, output_idx])
-
-            ax.plot(values_to_test, results, "o-")
-            ax.set_xlabel(f"{config_tuple[1]}")
-            ax.set_ylabel(f"{self.output_combo.currentText()}")
-            ax.grid(True)
-            self.canvas_param.draw()
+                self.plot_heatmap(p1_vals, p2_vals, z_matrix, p1_key, p2_key)
 
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка анализа", str(e))
+            # Важно: показываем пользователю, что именно пошло не так
+            QMessageBox.critical(self, "Ошибка анализа", f"Критическая ошибка: {str(e)}")
+
+        finally:
+            # 4. В любой ситуации (ошибка или успех) возвращаем кнопку в строй
+            self.analysis_run_button.setEnabled(True)
+            self.analysis_run_button.setText("Запустить анализ")
+
+    def _run_parameter_sweep(self, param_key, start_multiplier, end_multiplier, num_steps):
+        base_params = {p[0]: self.get_slider_value(p[0]) for p in self.param_list}
+        init_params = {p[0]: self.get_slider_value(p[0]) for p in self.init_list}
+
+        # Определяем, варьируем мы параметр или начальное условие
+        is_init_param = param_key in init_params
+        base_value = init_params[param_key] if is_init_param else base_params[param_key]
+        # param_values = np.linspace(
+        #     base_value * start_multiplier, base_value * end_multiplier, num_steps
+        # )
+        start_val = base_value * start_multiplier
+        end_val = base_value * end_multiplier
+        param_values = np.logspace(np.log10(start_val), np.log10(end_val), num_steps)
+        results = []
+
+        for value in param_values:
+            curr_p = base_params.copy()
+            curr_i = init_params.copy()
+
+            if is_init_param:
+                curr_i[param_key] = value
+            else:
+                curr_p[param_key] = value
+
+            params_tuple = tuple(curr_p[p[0]] for p in self.param_list)
+            y0 = [curr_i["T0"], curr_i["I0"], curr_i["C0"]]
+            t_span = (0, curr_i["t_end"])
+
+            t_values, y_values = self.run_simulation(params_tuple, y0, t_span)
+            results.append({"param_value": value, "t": t_values, "T": y_values[:, 0]})
+
+        return results, param_values
+
+    def plot_heatmap(self, x_vals, y_vals, z_matrix, p1_key, p2_key):
+        """Отрисовка тепловой карты (Heatmap)"""
+        # Создаем локальную переменную для удобства, чтобы не писать длинный путь
+        ax = self.analysis_canvas.axes
+        ax.cla()
+
+        norm = mcolors.TwoSlopeNorm(vcenter=1.0, vmin=0, vmax=max(1.1, np.max(z_matrix)))
+
+        X, Y = np.meshgrid(x_vals, y_vals)
+        mesh = ax.pcolormesh(X, Y, z_matrix, shading="auto", cmap="RdYlGn_r", norm=norm)
+
+        # Устанавливаем логарифмический масштаб ДО настройки аспектов
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+
+        # ДЕЛАЕМ ГРАФИК КВАДРАТНЫМ
+        # set_box_aspect(1) делает саму рамку осей квадратной независимо от данных
+        ax.set_box_aspect(1)
+
+        ax.set_xlabel(f"Параметр {p1_key}")
+        ax.set_ylabel(f"Параметр {p2_key}")
+
+        # Управление цветовой шкалой
+        if self.colorbar_ax is not None:
+            try:
+                self.colorbar_ax.remove()
+            except Exception:
+                pass
+            self.colorbar_ax = None
+
+        # Привязываем colorbar к конкретному ax, чтобы он не "ломал" пропорции основного окна
+        self.colorbar_ax = self.analysis_canvas.fig.colorbar(mesh, ax=ax, fraction=0.046, pad=0.04)
+
+        metric_name = self.analysis_metric_combo.currentText()
+        self.colorbar_ax.set_label(metric_name)
+
+        self.analysis_canvas.draw()
+
+    def _run_2d_analysis(self, p1_key, p1_range, p2_key, p2_range, steps=15):
+        AUC_LIMIT = 2.58e10
+
+        p1_vals = np.logspace(np.log10(p1_range[0]), np.log10(p1_range[1]), steps)
+        p2_vals = np.logspace(np.log10(p2_range[0]), np.log10(p2_range[1]), steps)
+
+        z_matrix = np.zeros((steps, steps))
+
+        current_params = {
+            p[0]: self.get_slider_value(p[0]) for p in self.param_list + self.init_list
+        }
+        metric_key = self.metrics_map[self.analysis_metric_combo.currentText()]
+
+        for i, v2 in enumerate(p2_vals):
+            for j, v1 in enumerate(p1_vals):
+                current_params[p1_key] = v1
+                current_params[p2_key] = v2
+
+                p_list = [current_params[p[0]] for p in self.param_list]
+                y0 = [current_params["T0"], current_params["I0"], current_params["C0"]]
+                t_span = (0, current_params["t_end"])
+
+                t, y = self.run_simulation(p_list, y0, t_span)
+
+                val = self._calculate_metric(t, y[:, 0], metric_key)
+
+                # ИСПРАВЛЕННАЯ ЛОГИКА:
+                if metric_key == "auc":
+                    # Линейное отношение. 0 - нет опухоли, 1 - достигнут лимит.
+                    z_matrix[i, j] = val / AUC_LIMIT
+                else:
+                    z_matrix[i, j] = val
+
+        return p1_vals, p2_vals, z_matrix
+
+    def _plot_family_of_curves(self, results, param_key, param_values, metric_values, metric_label):
+        self.analysis_canvas.fig.clear()
+
+        # Создаем сетку: верхний график (динамика), нижний (метрика) и цветовая шкала
+        gs = self.analysis_canvas.fig.add_gridspec(
+            2, 2, width_ratios=[25, 1], hspace=0.4, wspace=0.15
+        )
+
+        ax1 = self.analysis_canvas.fig.add_subplot(gs[0, 0])
+        ax2 = self.analysis_canvas.fig.add_subplot(gs[1, 0])
+        cax = self.analysis_canvas.fig.add_subplot(gs[:, 1])
+
+        colors = cm.viridis_r(np.linspace(0, 1, len(results)))
+
+        # 1. Верхний график: Семейство кривых
+        for i, res in enumerate(results):
+            ax1.plot(res["t"], res["T"], color=colors[i], alpha=0.6, linewidth=1.5)
+
+        ax1.set_yscale("log")
+        ax1.set_ylabel("Концентрация T")
+        ax1.set_title(f"Влияние параметра {param_key} на динамику")
+        ax1.grid(True, which="both", alpha=0.2)
+
+        # 2. Нижний график: Пузырьковая диаграмма (Bubble Chart)
+        # Если выбрана AUC, делаем акцент на размере кружков
+        metric_display = np.array(metric_values)
+
+        # Масштабируем размеры кружков (S соответствует площади в пунктах^2)
+        # Подбираем коэффициент так, чтобы кружки были видны, но не перекрывали всё
+        if "AUC" in metric_label or "Интегральная" in metric_label:
+            # Нормализуем значения для размеров (от 20 до 500 единиц площади)
+            if metric_display.max() != metric_display.min():
+                sizes = 20 + 480 * (metric_display - metric_display.min()) / (
+                    metric_display.max() - metric_display.min()
+                )
+            else:
+                sizes = [100] * len(metric_display)
+        else:
+            sizes = [60] * len(metric_display)  # Обычный размер для других метрик
+
+        # Рисуем линию (тренд)
+        ax2.plot(
+            param_values,
+            metric_values,
+            color="teal",
+            alpha=0.3,
+            linestyle="--",
+            zorder=1,
+        )
+
+        # Рисуем сами "пузырьки"
+        scatter = ax2.scatter(
+            param_values,
+            metric_values,
+            s=sizes,
+            c=metric_values,  # Цвет тоже зависит от значения
+            cmap="YlOrRd",  # Теплые цвета для большой нагрузки
+            edgecolors="black",
+            linewidths=0.8,
+            alpha=0.8,
+            zorder=2,
+        )
+
+        ax2.set_xlabel(f"Значение параметра {param_key}")
+        ax2.set_ylabel(metric_label)
+        ax2.grid(True, alpha=0.3)
+
+        # 3. Настройка цветовой шкалы (справа)
+        norm = cm.colors.Normalize(vmin=param_values.min(), vmax=param_values.max())
+        sm = cm.ScalarMappable(cmap=cm.viridis_r, norm=norm)
+        sm.set_array([])
+        cbar = self.analysis_canvas.fig.colorbar(sm, cax=cax)
+        cbar.set_label(f"Изменение параметра {param_key}")
+
+        self.analysis_canvas.draw()
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = TicModelGUI()
-    window.show()
+    main_win = MainWindow()
+    main_win.show()
     sys.exit(app.exec_())
