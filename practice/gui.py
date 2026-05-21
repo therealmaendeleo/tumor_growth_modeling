@@ -50,6 +50,7 @@ plt.rcParams["font.serif"] = ["STIXGeneral", "Times New Roman", "DejaVu Serif"]
 plt.rcParams["mathtext.fontset"] = "stix"
 
 plt.rcParams.update({"font.size": 20})
+plt.rcParams["axes.labelsize"] = 26
 
 
 def calculate_oscillation_period(t, T):
@@ -491,7 +492,7 @@ class MainWindow(QMainWindow):
             "Пиковая концентрация": "max",
             "Время до пика (дни)": "t_max",
             "Скорость роста (Log10/день)": "growth",
-            r"Интегральная нагрузка ($AUC_{norm}$)": "auc",
+            r"$AUC_{norm}$": "auc",
             "Период рецидивов (дни)": "period",  # ДОБАВЛЕНО
             "Амплитуда \nколебаний": "amplitude",  # ДОБАВЛЕНО
         }
@@ -1129,8 +1130,8 @@ class MainWindow(QMainWindow):
         # set_box_aspect(1) делает саму рамку осей квадратной независимо от данных
         ax.set_box_aspect(1)
 
-        ax.set_xlabel(f"Параметр {p1_key}")
-        ax.set_ylabel(f"Параметр {p2_key}")
+        ax.set_xlabel(f"Параметр {p1_key} [мл/(клетка·день)]")
+        ax.set_ylabel(f"Параметр {p2_key} [мл/(клетка·день)]")
 
         # Управление цветовой шкалой
         if self.colorbar_ax is not None:
@@ -1203,7 +1204,7 @@ class MainWindow(QMainWindow):
 
         ax1.set_yscale("log")
         ax1.set_ylabel("Концентрация T")
-        ax1.set_title(f"Влияние параметра {param_key} на динамику")
+        # ax1.set_title(f"Влияние параметра {param_key} на динамику")
         ax1.grid(True, which="both", alpha=0.2)
 
         # 2. Нижний график: Пузырьковая диаграмма (Bubble Chart)
@@ -1246,7 +1247,7 @@ class MainWindow(QMainWindow):
             zorder=2,
         )
 
-        ax2.set_xlabel(f"Значение параметра {param_key}")
+        ax2.set_xlabel(f"Значение параметра {param_key} [мл/(клетка·день)]")
         ax2.set_ylabel(metric_label)
         ax2.grid(True, alpha=0.3)
 
@@ -1255,7 +1256,7 @@ class MainWindow(QMainWindow):
         sm = cm.ScalarMappable(cmap=cm.viridis_r, norm=norm)
         sm.set_array([])
         cbar = self.analysis_canvas.fig.colorbar(sm, cax=cax)
-        cbar.set_label(f"Изменение параметра {param_key}")
+        cbar.set_label(f"Диапазон значений \nпараметра {param_key} [мл/(клетка·день)]")
 
         self.analysis_canvas.draw()
 
