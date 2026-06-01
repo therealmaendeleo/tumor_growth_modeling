@@ -13,7 +13,7 @@
 \usepackage{graphicx, epsfig}
 \usepackage{enumitem}
 \usepackage{listings}
-\usepackage{caption3}
+\usepackage{caption}
 
 \usepackage{csquotes}
 \usepackage{svg}
@@ -23,11 +23,18 @@
 \usepackage{color}
 \usepackage[colorlinks=false,linkcolor=blue,breaklinks]{hyperref}
 
-\usepackage[citestyle=gost-numeric,style=gost-numeric,maxnames=100,natbib=true,urldate=long,
-sorting=none]{biblatex}
+\usepackage[
+  citestyle=gost-numeric,
+  style=gost-numeric,
+  maxnames=100,
+  natbib=true,
+  urldate=long,
+  sorting=none,
+  autolang=other
+]{biblatex}
 \NewBibliographyString{jourvol}
-\DefineBibliographyStrings{russian}{pages = {P\adddot}, page = {P\adddot},
-jourvol = {Vol\adddot}, number = {No\adddot}, andothers = {et al\adddot}}
+%\DefineBibliographyStrings{russian}{pages = {P\adddot}, page = {P\adddot},
+%jourvol = {Vol\adddot}, number = {No\adddot}, andothers = {et al\adddot}}
 %\bibliographystyle{ugost2008ns.bst}
 \pagestyle{footcenter}
 \chapterpagestyle{footcenter}

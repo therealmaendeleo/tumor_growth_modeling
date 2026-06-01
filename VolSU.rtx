@@ -37,8 +37,8 @@
     }
     
     %\RequirePackage{caption}
-    \DeclareCaptionLabelSeparator{dottt}{. }
-    \captionsetup{labelsep=dottt, font=normalfont}
+    \DeclareCaptionLabelSeparator{emdash}{\space\textemdash\space}
+    \captionsetup{labelsep=emdash, font=normalfont, justification=centering}
 
     \renewcommand*{\multicitedelim}{\addcomma\space}
 
