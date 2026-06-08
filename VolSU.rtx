@@ -37,8 +37,8 @@
     }
     
     %\RequirePackage{caption}
-    \DeclareCaptionLabelSeparator{emdash}{\space\textemdash\space}
-    \captionsetup{labelsep=emdash, font=normalfont, justification=centering}
+    \DeclareCaptionLabelSeparator{dottt}{~--- }
+    \captionsetup{labelsep=dottt, font=normalfont}
 
     \renewcommand*{\multicitedelim}{\addcomma\space}
 
@@ -88,6 +88,12 @@
 % \DescribeMacro{\organizerstatus}\index{Макросы!\verb*+\organizerstatus+}
 \def\organizerstatus#1{\gdef\@organizerstatus{#1}}\organizerstatus{}
 
+% \DescribeMacro{\reviewer}\index{Макросы!\verb*+\reviewer+}
+\def\reviewer#1{\gdef\@reviewer{#1}}\reviewer{}
+
+% \DescribeMacro{\reviewerstatus}\index{Макросы!\verb*+\reviewerstatus+}
+\def\reviewerstatus#1{\gdef\@reviewerstatus{#1}}\reviewerstatus{}
+
 % \DescribeMacro{\semester}\index{Макросы!\verb*+\semester+}
 \def\semester#1{\gdef\@semester{#1}}\semester{}
 
@@ -101,13 +107,15 @@
 %                 \hskip 0pt plus 26fil {\small подпись}\\}
                  \hskip 0pt plus 26fil {\small \cyrp\cyro\cyrd\cyrp\cyri\cyrs\cyrsftsn}\\}
 %%
+\def\reviewerlabel{\reviewername:\\ \@reviewer, \@reviewerstatus %
+}
+                 %%
 \def\organizerlabel{\organizername:\\ \@organizer, \@organizerstatus %
 \hfill \underline{\hspace{4cm}} \\[-5mm] %
 %                 \hskip 0pt plus 26fil {\small подпись}\\}
                  \hskip 0pt plus 26fil {\small \cyrp\cyro\cyrd\cyrp\cyri\cyrs\cyrsftsn}\\}
 %%
-% \def\titlelabel{\@title \\ (\@semester)}
-\def\titlelabel{\@title}
+\def\titlelabel{\@title \\ \@semester}
 %%
 
 
@@ -123,7 +131,11 @@
                  \cyrg\cyrr\cyru\cyrp\cyrp\cyrery}
 %%
 \def\supervisorname{\CYRR\cyru\cyrk\cyro\cyrv\cyro\cyrd\cyri\cyrt\cyre\cyrl\cyrsftsn\ %
-                    \cyrp\cyrr\cyra\cyrk\cyrt\cyri\cyrk\cyri}
+                    \cyrr\cyra\cyrb\cyro\cyrt\cyrery}
+                    
+%%
+\def\reviewername{\CYRR\cyre\cyrc\cyre\cyrn\cyrz\cyre\cyrn\cyrt}
+
 %%
 \def\organizername{\CYRO\cyrt\cyrv\cyre\cyrt\cyrs\cyrt\cyrv\cyre\cyrn\cyrn\cyrery\cyrishrt\ %
                   \cyrz\cyra\ \\ \cyro\cyrr\cyrg\cyra\cyrn\cyri\cyrz\cyra\cyrc\cyri\cyryu\ %
@@ -134,17 +146,14 @@
 %%
 
 \def\progressapprov{
-\begin{table}[ht!]
-    \begin{tabular}{lll}
-%        \parbox[t]{5.25cm}{\organizername} & \parbox[t]{3cm}{ \ \newline \signature{(подпись)}} & \parbox[t]{7cm}{\@organizerstatus \\ \@organizer} \\ \noalign{\bigskip}
-        \parbox[t]{5.25cm}{\organizername} & \parbox[t]{3cm}{ \ \newline \signature{(\cyrp\cyro\cyrd\cyrp\cyri\cyrs\cyrsftsn)}} & \parbox[t]{7cm}{\@organizerstatus \\ \@organizer} \\ \noalign{\bigskip}
-          \ifx\@consultant\empty
-          \else
-%              \parbox[t]{5.25cm}{\consultantname} & \parbox[t]{3cm}{ \ \newline \signature{(подпись)}} & \parbox[t]{7cm}{\@consultantstatus \\ \@consultant}
-              \parbox[t]{5.25cm}{\consultantname} & \parbox[t]{3cm}{ \ \newline \signature{(\cyrp\cyro\cyrd\cyrp\cyri\cyrs\cyrsftsn)}} & \parbox[t]{7cm}{\@consultantstatus \\ \@consultant}
-          \fi
-    \end{tabular}
-\end{table}
+\noindent
+\begin{tabular}{lll}
+    \parbox[t]{5.25cm}{\organizername} & \parbox[t]{3cm}{\signature{подпись}} & \parbox[t]{7cm}{\ifx\@organizerstatus\empty\else\@organizerstatus\\\fi \@organizer} \\ \noalign{\bigskip}
+    \ifx\@consultant\empty
+    \else
+        \parbox[t]{5.25cm}{\consultantname} & \parbox[t]{3cm}{\signature{подпись}} & \parbox[t]{7cm}{\ifx\@consultantstatus\empty\else\@consultantstatus\\\fi \@consultant}
+    \fi
+\end{tabular}\par
 \setlength{\@fptop}{0pt}
 }
 
@@ -175,28 +184,27 @@
     {\@approved}
     \vskip\secondskip
     \begin{center}
-        {\@author}
-        \vskip\thirdskip
-        {\topicfont\@topic}
-        \vskip\fourthskip
-        {\titlefont\titlelabel}
-        \vskip\fourthskip\normalfont
-        {\courselabel\ \@coursenum~\@course}
+        {\@author} \\
+        {\topicfont\@topic} \\
+        {\titlefont\@title} \\
+        по направлению \\
+        {\@coursenum\ \@course}
     \end{center}
     \normalfont
-    \vskip\sixthskip
-    \hfill
-    \begin{flushleft}
-        \studentlabel
-        %%
-        \supervisorlabel
-        %%
-    \end{flushleft}
+    %\vskip\sevethskip
+    \vfill
+    \begin{table}[!h]
+        \begin{tabular}{p{0.35\textwidth}p{0.4\textwidth}p{0.25\textwidth}}
+         Студент & \@authorshort &  \parbox[t]{3cm}{\signature{(подпись)}} \\ \noalign{\bigskip}
+          \supervisorname & \parbox[t]{6.5cm}{\@supervisor \\ \@supervisorstatus}  &  \parbox[t]{3cm}{\signature{(подпись)}}  \\ \noalign{\bigskip}
+         \reviewername & \parbox[t]{8cm}{\@reviewer \\ \@reviewerstatus}    \\ \noalign{\bigskip}
+        \end{tabular}
+    \end{table}
     \vfill
     \begin{center}
-        {\@city \: --- \@date}
-    \end{center}
-    \vskip\seventhskip
+        {\@city \: \@date}
+    \end{center}  
+    \vskip\sixthskip
     \normalfont\clearpage
 }
 
